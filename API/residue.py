@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+sys.path.insert(1, r'top_pro_pack-v3\API')
 
 import API.atom as atom
 

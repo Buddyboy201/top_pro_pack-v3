@@ -1,11 +1,12 @@
 import sys
-sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+sys.path.insert(1, r'top_pro_pack-v3\API')
 
 import matplotlib as plt
 import seaborn as sns
 from collections import Counter
 import API.centroid_protein as centroid_protein
-import streamlit
+#import streamlit
 import matplotlib.pyplot as plt
 import pandas as pd
 

@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+sys.path.insert(1, r'top_pro_pack-v3\API')
 
 from boxsdk import JWTAuth, Client, OAuth2
 from API.atom import *
@@ -13,6 +14,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from API.visualizer import *
 
+
+asasasa
 # .out -> res => layer mapping
 # .out -> .pdb => cliques
 # (cliques + (res => mapping)) => cliques filtered by layer
@@ -20,6 +23,8 @@ from API.visualizer import *
 # update epair table for each protein using associated pairwise counts
 
 # step 1: .out -> res => layer mapping
+
+test = '''
 auth = JWTAuth.from_settings_file('config.json')
 access_token = auth.authenticate_instance()
 client_auth = OAuth2(client_id="ukaag2sjuuko9fjei5n9q6fufg4ca6b2",
@@ -172,7 +177,7 @@ labels = "G P D E K R H S T N Q A M Y W V I L F C".split(" ")
 draw_heatmap("E_total", E_total.get_static_epair_table(), labels, labels, "gist_rainbow_r")
 draw_heatmap("E_water", E_water.get_static_epair_table(), labels, labels, "gist_rainbow_r")
 draw_heatmap("E_interface", E_interface.get_static_epair_table(), labels, labels, "gist_rainbow_r")
-draw_heatmap("E_hydrophobic", E_hydrophobic.get_static_epair_table(), labels, labels, "gist_rainbow_r")
+draw_heatmap("E_hydrophobic", E_hydrophobic.get_static_epair_table(), labels, labels, "gist_rainbow_r")'''
 
 
 test = '''

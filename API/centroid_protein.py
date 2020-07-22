@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
+sys.path.insert(1, r'top_pro_pack-v3\API')
 
 import API.atom as atom
 import API.residue as residue
@@ -18,7 +19,7 @@ import pandas as pd
 import json
 import requests
 
-#python version=3.7.3
+#python version=3.7.7
 
 
 def binary_search(arr, val):
