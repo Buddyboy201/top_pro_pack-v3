@@ -1,0 +1,7 @@
+*.xlsx
+*.png
+*.txt
+main.py
+test.py
+plot_test.png.png
+*.json
