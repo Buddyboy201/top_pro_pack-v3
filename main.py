@@ -15,7 +15,7 @@ import seaborn as sns
 from API.visualizer import *
 
 
-asasasa
+
 # .out -> res => layer mapping
 # .out -> .pdb => cliques
 # (cliques + (res => mapping)) => cliques filtered by layer
