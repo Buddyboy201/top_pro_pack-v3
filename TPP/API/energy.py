@@ -1,8 +1,6 @@
-import sys
-#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
-sys.path.insert(1, r'top_pro_pack-v3\API')
+
 import os
-import API.centroid_protein as centroid_protein
+import TPP.API.centroid_protein as centroid_protein
 import numpy as np
 import pandas as pd
 import statistics as stat

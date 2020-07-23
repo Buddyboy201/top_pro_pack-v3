@@ -1,9 +1,6 @@
-import sys
-#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
-sys.path.insert(1, r'top_pro_pack-v3\API')
 
-import API.atom as atom
-import API.residue as residue
+import TPP.API.atom as atom
+import TPP.API.residue as residue
 import os
 import sys
 import numpy as np
@@ -18,6 +15,7 @@ import statistics
 import pandas as pd
 import json
 import requests
+from pathlib import Path
 
 #python version=3.7.7
 

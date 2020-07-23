@@ -1,16 +1,14 @@
-import sys
-#sys.path.insert(1, r'C:\Users\aprak\PycharmProjects\TopProPack_v2_2\API')
-sys.path.insert(1, r'top_pro_pack-v3\API')
 
-import API.centroid_protein as centroid_protein
-import API.atom as atom
-import API.residue as residue
-import API.energy as energy
+
+import TPP.API.centroid_protein as centroid_protein
+import TPP.API.atom as atom
+import TPP.API.residue as residue
+import TPP.API.energy as energy
 import os
 import sys
 import json
 import time
-import API.visualizer as visualizer
+import TPP.API.visualizer as visualizer
 import requests
 import sqlalchemy
 import numpy as np
@@ -20,7 +18,7 @@ import Bio
 
 class TPP_Engine:
     def __init__(self, exclude_backbone=False, distance_cutoff=6):
-        os.chdir(r"C:\Users\aprak\PycharmProjects\TopProPack_v2_2")
+        #os.chdir(r"C:\Users\aprak\PycharmProjects\TopProPack_v2_2")
         #self.STATIC_TOTAL_PAIRS_TABLE = None
         #self.STATIC_EPAIR_TABLE = None
         self.exclude_backbone = exclude_backbone
@@ -28,6 +26,8 @@ class TPP_Engine:
         self.proteins = []
         self.E = energy.Energy()
         self.projects = {}
+        if "top_pro_pack_logs" not in os.listdir(os.getcwd()):
+            os.mkdir("top_pro_pack_logs")
 
     def load_all_saved_data(self):
         files = os.listdir(os.getcwd()+"\\top_pro_pack_logs")
