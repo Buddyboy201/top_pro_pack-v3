@@ -1,0 +1,8 @@
+mendeleev
+biopython
+scipy
+matplotlib
+numpy
+pandas
+networkx
+sqlalchemy
