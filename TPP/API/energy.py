@@ -51,7 +51,7 @@ class Energy:
         M_const = self.get_M(self.STATIC_TOTAL_PAIRS_TABLE)
         for aa_i in self.ref:
             for aa_j in self.ref:
-                e_pair = self.get_epair(self.ref[aa_i], self.ref[aa_j], M_const, self.STATIC_TOTAL_PAIRS_TABLE)
+                e_pair = self._get_epair(self.ref[aa_i], self.ref[aa_j], M_const, self.STATIC_TOTAL_PAIRS_TABLE)
                 if aa_i == aa_j:
                     epair_heat_map[self.ref[aa_i]][self.ref[aa_j]] = e_pair
                 else:
@@ -85,7 +85,7 @@ class Energy:
         if M_const == 0: return None
         return (aa_heat_map.iloc[j, i]) / M_const
 
-    def get_epair(self, i, j, M_const, aa_heat_map):
+    def _get_epair(self, i, j, M_const, aa_heat_map):
         m_pair = self.M_pair(i, j, M_const, aa_heat_map)
         m_e = self.M_E(i, j, M_const, aa_heat_map)
         if M_const == 0 or m_pair == None or m_e == None or m_e == 0 or m_pair/m_e <= 0: return 0

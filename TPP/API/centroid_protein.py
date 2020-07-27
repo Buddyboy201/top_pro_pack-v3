@@ -163,30 +163,6 @@ class CentroidProtein:
 
                 for line in pdb_file:
                     original_res_name = line[16:20].strip(" ")
-                    #items = [item.strip(" ") for item in line.split(" ") if item.strip(" ") != ""]
-                    #print(items)
-
-                    reeeeee = '''if items[0] == "ATOM":
-                        res_name = items[3]
-                        res_id = int(items[5])
-                        if prev_res != res_id:
-                            prev_res = res_id
-                            res_count += 1
-                        res_id = res_count
-                        atom_id = atom_count
-                        atom_count += 1
-                        coords = (float(items[6]), float(items[7]), float(items[8]))
-                        bfactor = float(items[10])
-                        symbol = items[11]
-                        atom_name = items[2]
-                        chain = items[4]
-                        atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
-                        if self.residues.get(res_id) is None:
-                            self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain)
-                        else:
-                            self.residues[res_id].add_atom(atm)'''
-
-
                     if line[0:4] == "ATOM" and (original_res_name in AAs or original_res_name[1:] in AAs):
                         res_name = line[17:20].strip(" ")
                         res_id = int(line[22:26].strip(" "))
@@ -268,7 +244,7 @@ class CentroidProtein:
         print("json generating time: {}".format(time.time()-start_time))
         return data
 
-    def save_protein_data(self):
+    def save_protein_data(self):   # DEPRECATED - USE TPP_Engine() PROJECT SYSTEM INSTEAD
         if not os.path.exists(r"{}\top_pro_pack_logs\{}".format(os.getcwd(), self.name)):
             os.makedirs(r"{}\top_pro_pack_logs\{}".format(os.getcwd(), self.name))
         file = open(r"{}\top_pro_pack_logs\{}\protein_data.json".format(os.getcwd(), self.name), "w")
