@@ -1,6 +1,7 @@
 README.md
 setup.py
 TPP/__init__.py
+TPP/os_detection.py
 TPP/API/__init__.py
 TPP/API/atom.py
 TPP/API/centroid_protein.py

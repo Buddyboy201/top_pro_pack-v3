@@ -10,6 +10,16 @@ import sqlalchemy
 from pathlib import Path
 
 
+class Project:
+    def __init__(self):
+        pass
+
+    def init_protein(self):
+        pass
+
+    
+
+
 class TPP_Engine:
     def __init__(self):
         try:
@@ -19,6 +29,8 @@ class TPP_Engine:
             print("top_pro_pack data files located at {}".format(Path.home() / Path("top_pro_pack/bin")))
         self.base_lib_path = Path.home() / Path("top_pro_pack")
         self.projects = {}
+        self.exclude_backbone = False
+        self.distance_cutoff = 6
 
 
     def add_protein(self, project_name, name, file_path, json_load=True, data_load=True, data_url="https://files.rcsb.org/download/{}", raw_data=None):
@@ -67,7 +79,7 @@ class TPP_Engine:
             if len(P.residues) > 0:
                 P.generate_centroid_cliques(distance_cutoff=self.distance_cutoff)
                 # self.proteins.append(P)
-                self.E.update_static_total_pairs_table(P.get_heatmap_data_centroid())
+                #self.E.update_static_total_pairs_table(P.get_heatmap_data_centroid())
                 return P
             else:
                 return Exception("{} is empty".format(P.name))
@@ -82,7 +94,7 @@ class TPP_Engine:
             if len(P.residues) > 0:
                 P.generate_centroid_cliques(distance_cutoff=self.distance_cutoff)
                 # self.proteins.append(P)
-                self.E.update_static_total_pairs_table((P.get_heatmap_data_centroid()))
+                #self.E.update_static_total_pairs_table((P.get_heatmap_data_centroid()))
                 return P
             else:
                 return Exception("{} is empty".format(P.name))
@@ -95,7 +107,7 @@ class TPP_Engine:
             if len(P.residues) > 0:
                 P.generate_centroid_cliques(distance_cutoff=self.distance_cutoff)
                 # self.proteins.append(P)
-                self.E.update_static_total_pairs_table((P.get_heatmap_data_centroid()))
+                #self.E.update_static_total_pairs_table((P.get_heatmap_data_centroid()))
                 return P
             else:
                 return Exception("{} is empty".format(P.name))

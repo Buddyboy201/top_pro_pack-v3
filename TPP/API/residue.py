@@ -4,13 +4,14 @@ import TPP.API.atom as atom
 
 
 class Residue:
-    def __init__(self, name, resid, atoms, chain, load_json=False):
+    def __init__(self, name, resid, atoms, chain, load_json=False, old_resid=None):
         if not load_json:
             self.name = name
             self.resid = resid
             self.atoms = atoms
             self.centroid = None
             self.chain = chain
+            self.old_resid = old_resid
         else:
             self.name = None
             self.resid = None
@@ -37,6 +38,9 @@ class Residue:
 
     def get_resid(self):
         return self.resid
+
+    def get_old_resid(self):
+        return self.old_resid
 
     def get_COM(self, exclude_backbone=False):
         if self.name == "GLY":

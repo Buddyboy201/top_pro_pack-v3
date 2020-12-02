@@ -59,6 +59,23 @@ class Energy:
                     epair_heat_map[self.ref[aa_j]][self.ref[aa_i]] = e_pair
         self.STATIC_EPAIR_TABLE = pd.DataFrame(epair_heat_map)
 
+    def update_epair_values2(self, layer_map=None):
+        epair_heat_map = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] * 20).astype("float64")
+        N_tot = self.get_M(self.STATIC_TOTAL_PAIRS_TABLE)
+        layer_N_tot = None
+        if isinstance(layer_map, pd.DataFrame):
+            layer_N_tot = self.get_M(layer_map)
+        print(N_tot, layer_N_tot)
+        for aa_i in self.ref:
+            for aa_j in self.ref:
+                e_pair = self._get_epair2(self.ref[aa_i], self.ref[aa_j], N_tot, self.STATIC_TOTAL_PAIRS_TABLE, layer_map=layer_map, layer_N_tot=layer_N_tot)
+                if aa_i == aa_j:
+                    epair_heat_map[self.ref[aa_i]][self.ref[aa_j]] = e_pair
+                else:
+                    epair_heat_map[self.ref[aa_i]][self.ref[aa_j]] = e_pair
+                    epair_heat_map[self.ref[aa_j]][self.ref[aa_i]] = e_pair
+        self.STATIC_EPAIR_TABLE = pd.DataFrame(epair_heat_map)
+
     def get_static_total_pairs_table(self):
         return self.STATIC_TOTAL_PAIRS_TABLE
 
@@ -90,6 +107,30 @@ class Energy:
         m_e = self.M_E(i, j, M_const, aa_heat_map)
         if M_const == 0 or m_pair == None or m_e == None or m_e == 0 or m_pair/m_e <= 0: return 0
         return -math.log( m_pair/ m_e , math.e)
+
+
+
+
+    def _P_i(self, i, N_tot, aa_heat_map, layer_map=None, layer_N_tot=None):
+        if N_tot == 0: return None
+        if not isinstance(layer_map, pd.DataFrame):
+            #print("RIPPPP")
+            return aa_heat_map.iloc[:, i].sum()/float(N_tot)
+        #print(layer_N_tot)
+        return layer_map.iloc[:, i].sum()/float(layer_N_tot)
+
+    def _P_i_j(self, i, j, N_tot, aa_heat_map, M=100, layer_map=None, layer_N_tot=None):
+        if N_tot == 0: return None
+        if not isinstance(layer_map, pd.DataFrame): return (aa_heat_map.iloc[j, i]) / N_tot
+        return (layer_map.iloc[j, i] + M*aa_heat_map.iloc[j, i]/N_tot)/(layer_N_tot + M)
+
+    def _get_epair2(self, i, j, N_tot, aa_heat_map, layer_map=None, layer_N_tot=None):
+        P_indv = (self._P_i(i, N_tot, aa_heat_map, layer_map=layer_map, layer_N_tot=layer_N_tot) * self._P_i(j, N_tot, aa_heat_map,
+                                                                                    layer_map=layer_map, layer_N_tot=layer_N_tot))
+        P_pair = self._P_i_j(i, j, N_tot, aa_heat_map, layer_map=layer_map, layer_N_tot=layer_N_tot)
+
+        if N_tot == 0 or P_pair == None or P_indv == None or P_indv == 0 or P_pair/P_indv <= 0: return 0
+        return -math.log(P_pair / P_indv)
 
 
 

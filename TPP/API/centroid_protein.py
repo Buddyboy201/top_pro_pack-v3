@@ -90,6 +90,7 @@ class CentroidProtein:
                         prev_res = res_id
                         res_count += 1
                     # atom_id = int(line[6:11].strip(" "))
+                    old_res_id = res_id
                     res_id = res_count
                     atom_id = atom_count
                     atom_count += 1
@@ -103,7 +104,7 @@ class CentroidProtein:
                     chain = str(line[21].strip(" "))
                     atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
                     if self.residues.get(res_id) is None:
-                        self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain)
+                        self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain, old_resid=old_res_id)
                     else:
                         self.residues[res_id].add_atom(atm)
         elif raw_data != None:
@@ -130,6 +131,7 @@ class CentroidProtein:
                         prev_res = res_id
                         res_count += 1
                     # atom_id = int(line[6:11].strip(" "))
+                    old_res_id = res_id
                     res_id = res_count
                     atom_id = atom_count
                     atom_count += 1
@@ -143,7 +145,7 @@ class CentroidProtein:
                     chain = str(line[21].strip(" "))
                     atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
                     if self.residues.get(res_id) is None:
-                        self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain)
+                        self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain, old_resid=old_res_id)
                     else:
                         self.residues[res_id].add_atom(atm)
         else:
@@ -170,6 +172,7 @@ class CentroidProtein:
                             prev_res = res_id
                             res_count += 1
                         # atom_id = int(line[6:11].strip(" "))
+                        old_res_id = res_id
                         res_id = res_count
                         atom_id = atom_count
                         atom_count += 1
@@ -183,7 +186,7 @@ class CentroidProtein:
                         chain = str(line[21].strip(" "))
                         atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
                         if self.residues.get(res_id) is None:
-                            self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain)
+                            self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain, old_resid=old_res_id)
                         else:
                             self.residues[res_id].add_atom(atm)
 
