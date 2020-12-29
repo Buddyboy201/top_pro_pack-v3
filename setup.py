@@ -22,7 +22,7 @@ setuptools.setup(
     ],
     py_modules=[],
     install_requires=["mendeleev", "biopython", "scipy", "matplotlib",
-                      "numpy", "pandas", "networkx", "sqlalchemy", "pathlib"],
+                      "numpy", "pandas", "networkx", "sqlalchemy", "pathlib", "plotly"],
     python_requires='>=3.6',
     license="MIT"
 )
