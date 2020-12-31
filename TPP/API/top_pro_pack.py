@@ -32,6 +32,9 @@ class Project:
         self.config_path = Path(config_path)
         self.proteins = {}
 
+    def generate_default_ids(self):
+        return [f.stem if f not in proj.list_ignored() else "" for f in proj.list_pdb_files()]
+
     def _get_function_perf_decorator(func):
         def inner(self, id, filename):
             start = perf_counter()

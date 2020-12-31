@@ -67,4 +67,19 @@ example_proj = Project(config_path)
 example_proj.load_all_pdbs(id_list) # list of ids for each pdb in pdb_dir in order of the files as listed in pdb_dir
 ~~~
 
+The method *TPP.API.top_pro_pack.Project.generate_default_ids* can be used to create a list ids based of the file names of
+the pdb files in pdb_dir while taking into account any ignored files in the directory. It is reccomended this method be used 
+when loading the entire pdb_dir since it eliminates any errors relating to pdb_id misatrribution unless a custom set of ids is desired.
+An example of this methods use can be seen as follows:
+
+~~~python
+from TPP.API.top_pro_pack import Project
+from pathlib import Path
+
+config_path = "<insert_config_file_path_here>"
+example_proj = Project(config_path)
+
+example_proj.load_all_pdbs(example_proj.generate_default_ids())
+~~~
+
 
