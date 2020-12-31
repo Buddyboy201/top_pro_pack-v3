@@ -97,8 +97,9 @@ class CentroidProtein:
                         coordy = float(line[38:46].strip(" "))
                         coordz = float(line[46:54].strip(" "))
                         bfactor = float(line[61:66].strip(" "))
-                        symbol = line[76:78].strip(" ")
+                        # symbol = line[76:78].strip(" ")
                         atom_name = line[12:16].strip(" ")
+                        symbol = atom_name[0]
                         coords = (coordx, coordy, coordz)
                         chain = str(line[21].strip(" "))
                         atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
@@ -178,8 +179,10 @@ class CentroidProtein:
         centroids = []
         centroid_res = {}
         for i in self.residues:
-            centroids.append(self.residues[i].get_centroid())
-            centroid_res[self.residues[i].get_centroid()] = self.residues[i]
+            centroid = self.residues[i].get_centroid(exclude_backbone=self.exclude_backbone)
+            if centroid is not None:
+                centroids.append(centroid)
+                centroid_res[centroid] = self.residues[i]
         centroids = np.array(centroids)
         tri = scipy.spatial.qhull.Delaunay(centroids)
         edges = []

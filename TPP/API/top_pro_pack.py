@@ -6,6 +6,7 @@ from pathlib import Path
 from TPP.API.centroid_protein import CentroidProtein
 import json
 from shutil import copyfile
+from time import perf_counter
 
 def get_config(name, pdb_path, json_path, exclude_backbone, distance_cutoff, ignored_paths):
     config = {
@@ -30,6 +31,16 @@ class Project:
         self._init_project(config_path)
         self.config_path = Path(config_path)
         self.proteins = {}
+
+    def _get_function_perf_decorator(func):
+        def inner(self, id, filename):
+            start = perf_counter()
+            out = func(self, id, filename)
+            end = perf_counter()
+            print(end - start)
+            return out
+
+        return inner
 
     def _init_project(self, config_path):
         if not Path(config_path).is_file():
@@ -57,6 +68,7 @@ class Project:
         except:
             raise Exception("{} is invalid/ignored".format(id))
 
+    @_get_function_perf_decorator
     def load_protein(self, id, file_name):
         file_path = None
         if Path(file_name).suffix == ".json":
@@ -76,6 +88,7 @@ class Project:
                 return None
         else:
             raise Exception("Not a valid {} file".format(file_path.suffix))
+
 
     def add_protein(self, file_path):
         if Path(file_path).is_file():
