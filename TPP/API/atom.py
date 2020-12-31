@@ -21,7 +21,7 @@ class Atom:
             self.mc_sc = False
             if self.name == "CA" or self.name == "C" or self.name == "N" or self.name == "O":
                 self.mc_sc = True
-            if element_mass.get(self.symbol) == None:
+            if element_mass.get(self.symbol) is None:
                 element_mass[self.symbol] = element(self.symbol).atomic_weight
             self.atomic_mass = element_mass[self.symbol]
             self.vector = Vector(x=self.coords[0], y=self.coords[1], z=self.coords[2])
