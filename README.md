@@ -50,7 +50,7 @@ from pathlib import Path
 
 config_path = "<insert_config_file_path_here>"
 example_proj = Project(config_path)
-example_proj.load_protein("<insert_protein_id_here>")
+example_proj.load_protein("<insert_protein_id_here>", "<insert_pdb_file_name__from_pdb_dir_here (e.g. 'test.pdb')>")
 test_Protein = example_proj.get_protein("<insert_protein_id_here>") # this command can be used to receive a CentroidProtein object for the pdb data once it has been loaded
 ~~~
 
