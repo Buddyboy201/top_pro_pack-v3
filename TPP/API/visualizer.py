@@ -6,6 +6,7 @@ import TPP.API.centroid_protein as centroid_protein
 #import streamlit
 import matplotlib.pyplot as plt
 import pandas as pd
+from pathlib import Path
 
 
 
@@ -26,7 +27,7 @@ def draw_histogram(data, title, normalized=False):
 		ax = sns.distplot(data)
 	plt.show()
 
-def draw_heatmap(name, heatmap_data, x_labels, y_labels, cmap, center=0):
+def draw_heatmap(name, heatmap_data, x_labels, y_labels, cmap, center=0, path_to_dir=r""):
 	#maximum = 0
 	#minimum = 0
 	#for i in heatmap_data:
@@ -35,7 +36,7 @@ def draw_heatmap(name, heatmap_data, x_labels, y_labels, cmap, center=0):
 	#		if j < minimum: minimum = j
 	#if center is None: plot = sns.heatmap(heatmap_data, xticklabels=x_labels, yticklabels=y_labels, robust=True, cmap=cmap, vmax=maximum, vmin=minimum)
 	plot = sns.heatmap(heatmap_data, xticklabels=x_labels, yticklabels=y_labels, center=0, vmin=-1, vmax=1, robust=True, cmap=cmap)
-	plt.savefig("{}.png".format(name))
+	plt.savefig(Path(Path(path_to_dir) / Path("{}.png".format(name))))
 	plt.clf()
 	#plt.show()
 

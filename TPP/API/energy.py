@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import statistics as stat
 import math
-from itertools import permutations
+from itertools import permutations, product
 
 class Energy:
     def __init__(self):
@@ -89,7 +89,8 @@ class Energy:
     def get_M(self, aa_heat_map):
         total = 0
         for i in range(20):
-            total += aa_heat_map.iloc[:, i].sum()
+            #print(aa_heat_map.iloc[:, i])
+            total += aa_heat_map.iloc[:, i].sum() + aa_heat_map.iloc[i, i]
         return total
 
     def M_single(self, i, aa_heat_map):
@@ -115,7 +116,6 @@ class Energy:
     def _P_i(self, i, N_tot, aa_heat_map, layer_map=None, layer_N_tot=None):
         if N_tot == 0: return None
         if not isinstance(layer_map, pd.DataFrame):
-            #print("RIPPPP")
             return aa_heat_map.iloc[:, i].sum()/float(N_tot)
         #print(layer_N_tot)
         return layer_map.iloc[:, i].sum()/float(layer_N_tot)
@@ -134,13 +134,12 @@ class Energy:
         return -math.log(P_pair / P_indv)
 
 class EnergyND:
-    def __init__(self, dim=3):
-        self.dim = dim
-
-        #self.STATIC_TOTAL_GROUPS_TABLE = np.array(array).astype("int32")
-        self.STATIC_TOTAL_GROUPS_TABLE = np.zeros(shape=(20,)*self.dim, dtype="int32")
-        self.STATIC_EPAIR_TABLE = np.zeros(shape=(20,)*self.dim, dtype="float64")
-        self.up_to_date = False
+    def __init__(self, M, L="ALL"):
+        if M not in range(2, 5): raise Exception("Invalid clique dim: {}".format(M))
+        self.M = M
+        self.L = L
+        self.STATIC_TOTAL_GROUPS_TABLE = np.zeros(shape=(20,) * M, dtype="int32")
+        self.STATIC_EPAIR_TABLE = np.zeros(shape=(20,) * M, dtype="float64")
         self.ref = {
             "GLY": 0,
             "PRO": 1,
@@ -164,71 +163,252 @@ class EnergyND:
             "CYS": 19
         }
 
-    def update_static_total_groups_table(self, protein_groups_matrix):
-        self.STATIC_TOTAL_GROUPS_TABLE = np.add(self.STATIC_TOTAL_GROUPS_TABLE,
-                                                            protein_groups_matrix)
+    def update_static_groups_table(self, counts_matrix):
+        self.STATIC_TOTAL_GROUPS_TABLE = np.add(self.STATIC_TOTAL_GROUPS_TABLE, counts_matrix)
 
-    def get_static_total_groups_table(self):
+    def update_epair_table(self):
+        unique_clique_combos = self._get_all_unique_cliques()
+        total_clique_counts = self._get_total_group_counts(unique_clique_combos)
+        print(total_clique_counts)
+        for clique in unique_clique_combos:
+            if len(list(set(clique))) == 1:
+                self.STATIC_EPAIR_TABLE[self._get_res_codes(clique)] = self._compute_epair(clique, total_clique_counts)
+            else:
+                e_pair = self._compute_epair(clique, total_clique_counts)
+                for combo in permutations(clique):
+                    #print(combo, e_pair)
+                    self.STATIC_EPAIR_TABLE[self._get_res_codes(combo)] = e_pair
+
+    def _cartesian_product(self, residues):
+        if self.M != len(residues):
+            raise Exception("Mismatched clique dim with given indexing dim: {}".format(len(residues)))
+        if self.M == 2:
+            return product(residues, residues, repeat=1)
+        elif self.M == 3:
+            return product(residues, residues, residues, repeat=1)
+        elif self.M == 4:
+            return product(residues, residues, residues, residues, repeat=1)
+
+    def get_static_groups_table(self):
         return self.STATIC_TOTAL_GROUPS_TABLE
 
-    def get_static_epair_table(self):
-        return self.STATIC_EPAIR_TABLE
+    def get_counts(self, residues):
+        res_codes = tuple(map(lambda x: self.ref[x], residues))
+        return self.STATIC_TOTAL_GROUPS_TABLE[res_codes]
+
+    def _get_res_codes(self, residues):
+        return tuple(map(lambda x: self.ref[x], residues))
 
     def get_epair(self, residues):
-        val = self.STATIC_EPAIR_TABLE
-        for i in residues:
-            val = val[i]
-        return val
+        res_codes = self._get_res_codes(residues)
+        return self.STATIC_EPAIR_TABLE[res_codes]
 
-    def _get_counts_1(self, arr):
-        count = 0
-        for i in arr:
-            if isinstance(i, type(np.array([]))):
-                count += self._get_counts_1(i)
+    def _compute_epair(self, residues, total_counts):
+        if self.M == 2:
+            return self._compute_epair_2(residues, total_counts)
+        elif self.M == 3:
+            return self._compute_epair_3(residues, total_counts)
+        elif self.M == 4:
+            return self._compute_epair_4(residues, total_counts)
+
+    def _get_all_unique_cliques(self):
+        residues = list(self.ref.keys())
+        keys = list(self.ref.keys())
+        for i in range(self.M - 1):
+            #print(i)
+            new_keys = []
+            for res_i in keys:
+                for res_j in residues:
+                    val = None
+                    if isinstance(res_i, type("")):
+                        val = [res_i, res_j]
+                    else:
+                        val = [] + res_i
+                        val.append(res_j)
+                    val.sort()
+                    # print(val)
+                    new_keys.append(val)
+            new_keys_str = list(set(list(map(lambda x: ";".join(sorted(x)), new_keys))))
+            new_keys_str.sort()
+            new_keys = list(map(lambda x: x.split(";"), new_keys_str))
+            keys = new_keys
+        return keys
+
+    def _get_total_group_counts(self, unique_clique_combos):
+        total = 0
+        for combo in unique_clique_combos:
+            total += self.get_counts(combo)
+        return total
+
+    def _compute_epair_2(self, residues, total_counts):
+        if len(residues) != 2:
+            raise Exception("Inavlid residues indexing of dim: {}".format(len(residues)))
+        A, B = residues[0], residues[1]
+        counts_A, counts_B, counts_AB = sum(self.get_counts([A])), sum(self.get_counts([B])), self.get_counts(residues)
+        #total_counts = self._get_total_group_counts()
+        P_A = counts_A / (2*total_counts)
+        P_B = counts_B / (2*total_counts)
+        P_AB = counts_AB / (2*total_counts)
+        P_indv = P_A * P_B
+        if P_indv == 0 or P_AB == 0:
+            return 0
+        return -np.log(P_AB / P_indv)
+
+
+    def _compute_epair_3(self, residues, total_counts):
+        if len(residues) != 3:
+            raise Exception("Inavlid residues indexing of dim: {}".format(len(residues)))
+        A, B, C = residues[0], residues[1], residues[2]
+        counts_A, counts_BC, counts_ABC = sum(self.get_counts([A])), sum(self.get_counts([B, C])), self.get_counts(residues)
+        P_A = counts_A / (3*total_counts)
+        P_BC = counts_BC / (3*total_counts)
+        P_ABC = counts_ABC / (3*total_counts)
+        P_indv = P_A * P_BC
+        if P_indv == 0 or P_ABC == 0:
+            return 0
+        return -np.log(P_ABC / P_indv)
+
+
+    def _compute_epair_4(self, residues, total_counts):
+        pass
+
+
+class EnergyND2:
+    def __init__(self, M, cliques, L="ALL"):
+        self.M = M
+        self.L = L
+        if M not in range(2, 5): raise Exception("Invalid clique dim: {}".format(M))
+        self.M = M
+        self.L = L
+        self.STATIC_EPAIR_TABLE = np.zeros(shape=(20,) * M, dtype="float64")
+        self.ref = {
+            "GLY": 0,
+            "PRO": 1,
+            "ASP": 2,
+            "GLU": 3,
+            "LYS": 4,
+            "ARG": 5,
+            "HIS": 6,
+            "SER": 7,
+            "THR": 8,
+            "ASN": 9,
+            "GLN": 10,
+            "ALA": 11,
+            "MET": 12,
+            "TYR": 13,
+            "TRP": 14,
+            "VAL": 15,
+            "ILE": 16,
+            "LEU": 17,
+            "PHE": 18,
+            "CYS": 19
+        }
+        if len(cliques[0]) != M:
+            raise Exception("Mismatched set clique dim and input clique dim")
+        self.total_res = 0
+        self.res_hash = {1:{}, 2:{}, 3:{}, 4:{}}
+        for clique in cliques:
+            self.total_res += len(clique)
+        for res in self.ref.keys():
+            self.res_hash[1][res] = 0
+        if self.M >= 2:
+
+            for combo in product(list(self.ref.keys()), list(self.ref.keys())):
+                vals = list(combo)
+                vals.sort()
+                val = ";".join(vals)
+                if self.res_hash.get(2).get(val) is None: self.res_hash[2][val] = 0
+        if self.M >= 3:
+            for combo in product(list(self.ref.keys()), list(self.ref.keys()), list(self.ref.keys())):
+                vals = list(combo)
+                vals.sort()
+                val = ";".join(vals)
+                if self.res_hash.get(3).get(val) is None: self.res_hash[3][val] = 0
+        if self.M == 4:
+            for combo in product(list(self.ref.keys()), list(self.ref.keys()), list(self.ref.keys()), list(self.ref.keys())):
+                vals = list(combo)
+                vals.sort()
+                val = ";".join(vals)
+                if self.res_hash.get(4).get(val) is None: self.res_hash[4][val] = 0
+
+        for clique in cliques:
+            for res in clique:
+                self.res_hash[1][res] += 1
+            for i in range(len(clique)):
+                for j in range(i+1, len(clique)):
+                    pair = [clique[i], clique[j]]
+                    pair.sort()
+                    val = ";".join(pair)
+                    self.res_hash[2][val] += 1
+            if self.M > 3:
+                for i in range(len(clique)):
+                    for j in range(i + 1, len(clique)):
+                        for k in range(j+1, len(clique)):
+                            triplet = [clique[i], clique[j], clique[k]]
+                            triplet.sort()
+                            val = ";".join(triplet)
+                            self.res_hash[3][val] += 1
+            elif self.M == 3:
+                clique.sort()
+                val = ";".join(clique)
+                self.res_hash[3][val] += 1
+
+    def get_counts(self, residues):
+        residues.sort()
+        val = ";".join(residues)
+        return self.res_hash[len(residues)][val]
+
+    def _get_res_codes(self, residues):
+        return tuple(map(lambda x: self.ref[x], residues))
+
+    def update_epair_table(self):
+        for combo_str in self.res_hash[self.M]:
+            #print(combo_str)
+            combo = combo_str.split(";")
+            if len(list(set(combo))) == 1:
+                self.STATIC_EPAIR_TABLE[self._get_res_codes(combo)] = self._compute_epair(combo)
             else:
-                count += i
-        return count
+                e_pair = self._compute_epair(combo)
+                for clique_combo in permutations(combo):
+                    self.STATIC_EPAIR_TABLE[self._get_res_codes(clique_combo)] = e_pair
 
-    def _get_counts_2(self, arr):
-        count = 0
-        for i in arr:
-            if isinstance(i[0], type(np.array([]))):
-                count += self._get_counts_2(i)
-            else:
-                count += sum(i)
-        return count
-
-    def _P_A(self, A):
-        arr = self.get_static_total_groups_table()[A]
-        return self._get_counts_2(arr)
-
-    def _P_2(self, X):
-        arr = self.get_static_total_groups_table()
-        for i in X:
-            arr = arr[i]
-        return self._get_counts_2(arr)
-
-    def _P_3(self, X):
-        arr = self.get_static_total_groups_table()
-        for i in X:
-            arr = arr[i]
-        return self._get_counts_2(arr)
-
-    def _P_4(self, X):
-        arr = self.get_static_total_groups_table()
-        for i in X:
-            arr = arr[i]
-        return self._get_counts_2(arr)
-
-    def _get_epair(self, residues):
-        if self.dim == 2:
-            return -math.log(self._P_2(residues) / (self._P_A(residues[0]) * self._P_A(residues[1])),
-                             math.e)
-        elif self.dim == 3:
-            return -math.log(self._P_3(residues) / (self._P_2(residues) * self._P_A(residues[1])),
-                             math.e)
-        elif self.dim == 4:
-            pass
+    def _compute_epair_2(self, residues):
+        if len(residues) != 2:
+            raise Exception("Inavlid residues indexing of dim: {}".format(len(residues)))
+        A, B = residues[0], residues[1]
+        counts_A, counts_B, counts_AB = self.get_counts([A]), self.get_counts([B]), self.get_counts(residues)
+        #total_counts = self._get_total_group_counts()
+        P_A = counts_A / self.total_res
+        P_B = counts_B / self.total_res
+        P_AB = counts_AB / self.total_res
+        P_indv = P_A * P_B
+        if P_indv == 0 or P_AB == 0:
+            return 0
+        return -np.log(P_AB / P_indv)
 
 
+    def _compute_epair_3(self, residues):
+        if len(residues) != 3:
+            raise Exception("Inavlid residues indexing of dim: {}".format(len(residues)))
+        A, B, C = residues[0], residues[1], residues[2]
+        counts_A, counts_BC, counts_ABC = self.get_counts([A]), self.get_counts([B, C]), self.get_counts(residues)
+        P_A = counts_A / self.total_res
+        P_BC = counts_BC / self.total_res
+        P_ABC = counts_ABC / self.total_res
+        P_indv = P_A * P_BC
+        if P_indv == 0 or P_ABC == 0:
+            return 0
+        return -np.log(P_ABC / P_indv)
+
+
+    def _compute_epair_4(self, residues, total_counts):
+        pass
+
+    def _compute_epair(self, residues):
+        if self.M == 2:
+            return self._compute_epair_2(residues)
+        elif self.M == 3:
+            return self._compute_epair_3(residues)
+        elif self.M == 4:
+            return self._compute_epair_4(residues)
 
