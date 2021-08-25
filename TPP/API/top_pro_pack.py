@@ -33,7 +33,7 @@ class Project:
         self.proteins = {}
 
     def generate_default_ids(self):
-        return [f.stem if f not in proj.list_ignored() else "" for f in proj.list_pdb_files()]
+        return [f.stem if f not in self.list_ignored() else "" for f in self.list_pdb_files()]
 
     def _get_function_perf_decorator(func):
         def inner(self, id, filename):
@@ -87,6 +87,7 @@ class Project:
                 self.ignore_links[id] = False
                 return val
             else:
+                # print("\n#################################################\n#########################################################\n",file_path, "\n#################################################\n#########################################################\n\n")
                 self.ignore_links[id] = True
                 return None
         else:
@@ -122,7 +123,7 @@ class Project:
 
     def load_all_pdbs(self, ids, pdb_filter=None):
         try:
-            for pdb_file, id in zip(self.pdb_path.iterdir(), ids):
+            for pdb_file, id in zip(self.list_pdb_files(), ids):
                 print("loading {} as {} ...".format(Path(pdb_file), id))
                 val = self.load_protein(id, Path(pdb_file))
                 if isinstance(val, Exception):
