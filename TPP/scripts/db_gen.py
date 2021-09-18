@@ -18,7 +18,7 @@ def gen_table_and_connect_engine(db_path):
     )
     meta.create_all(engine)
     conn = engine.connect()
-    return conn, cliques_table
+    return conn, cliques_table, meta, engine
 
 
 def _get_filtered_out_lines(out_file):

@@ -1,4 +1,4 @@
-from TPP.API.visualizer import draw_heatmap
+from TPP.scripts.visualizer import draw_heatmap
 from TPP.API.energy import EnergyND2
 from pandas import DataFrame
 import os
