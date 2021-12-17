@@ -1,9 +1,7 @@
 
-import os
 import TPP.API.centroid_protein as centroid_protein
 import numpy as np
 import pandas as pd
-import statistics as stat
 import math
 from itertools import permutations, product
 
