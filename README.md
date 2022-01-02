@@ -150,11 +150,35 @@ The formula used to derive the "groupwise" potentials for a given residue triple
 
 ### 5. Heatmap Visualizations for Potentials
 
-The TPP API makes it extremely easy to generate heatmaps in bulk for analyzing both pairwise potentials as well as residue triplets (currently only M=2 or 3
-supported for generating potentials) through the function *TPP.scripts.heatmap_gen.generate_all_2d_3d_heatmaps*
+The TPP API makes it extremely easy to generate heatmaps in bulk for analyzing both pairwise potentials and residue triplets (currently only M=2 or 3
+supported for generating potentials) through the function *TPP.scripts.heatmap_gen.generate_all_2d_3d_heatmaps*:
+
+~~~python
+from TPP.scripts.heatmap_gen import generate_all_2d_3d_heatmaps
+path_to_heatmaps_dir = "<insert path to top-level folder to hold heatmaps here>"
+conn = "<...>" # generated during db_gen step
+date_created = "<insert string containing date or any other identifier for heatmaps generated>"
+generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created)
+~~~
+
+If only a singular heatmap needs to be generated, the *TPP.scripts.heatmap_gen.generate_heatmap*
+function can instead be used:
+
+~~~python
+from TPP.scripts.heatmap_gen import generate_heatmap
+M = "<...>" # INTEGER size of cliques
+conn = "<...>" # generated during db_gen step
+layer = "<ALL/WATER/INTERFACE/HYDROPHOBIC>"
+generate_heatmap("<heatmap(s) name>", M, conn, layer=layer)
+~~~
 
 
 ## Structure Representation
+
+The TPP api organizes pdb information in the following hierarchy:
+
+Project
+    |_
 
 
 
