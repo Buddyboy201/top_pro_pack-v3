@@ -50,7 +50,7 @@ from pathlib import Path
 
 config_path = "<insert_config_file_path_here>"
 example_proj = Project(config_path)
-example_proj.load_protein("<insert_protein_id_here>", "<insert_pdb_file_name__from_pdb_dir_here (e.g. 'test.pdb')>")
+example_proj.load_protein("<insert_protein_id_here>", "<insert_pdb_file_name_from_pdb_dir_here (e.g. 'test.pdb')>")
 test_Protein = example_proj.get_protein("<insert_protein_id_here>") # this command can be used to receive a CentroidProtein object for the pdb data once it has been loaded
 ~~~
 
@@ -145,7 +145,7 @@ energy.update_epair_table()
 energy.STATIC_EPAIR_TABLE
 ~~~
 
-The formula used to derive the "groupwise" potentials for a given residue triplet A-B-C is: *-ln(P(A)*P(BC)/P(ABC))*
+The formula used to derive the "groupwise" potentials for a given residue triplet A-B-C is: *-ln(P(A)xP(BC)/P(ABC))*
 
 
 ### 5. Heatmap Visualizations for Potentials
