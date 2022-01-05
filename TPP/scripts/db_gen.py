@@ -1,7 +1,8 @@
 from TPP.API.top_pro_pack import Project
 from pathlib import Path
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
-
+from TPP.API.verbose import handle_debug
+from TPP.API import verbose
 
 def gen_table_and_connect_engine(db_path):
     engine = create_engine(db_path, echo=True)
@@ -82,7 +83,7 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
         pdb_id_clean = pdb_id[len("Menv_color_memb_cen_nor_"):len("Menv_color_memb_cen_nor_")+4]
         if Path(out_dir / Path("{}_Menv.out".format(pdb_id_clean))).is_file():
             flags = [pdb_id, Path(out_dir / Path("{}_Menv.out".format(pdb_id_clean))).__str__()]
-            print("out file found for {}".format(pdb_id))
+            handle_debug(print, "out file found for {}".format(pdb_id))
             P = proj.get_protein(pdb_id)
             hydrophobic_count = 0
             layer_ref = {}
@@ -105,7 +106,7 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
             if len(flags) > 2:
                 bad_proteins.append(",".join(flags) + "\n")
             else:
-                print(len(layer_ref), len(P.residues), pdb_id_clean)
+                handle_debug(print, len(layer_ref), len(P.residues), pdb_id_clean)
                 cliques = P.centroid_cliques
                 buffer = []
                 for clique in cliques:
@@ -116,10 +117,11 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
             # insert comment 3 here
 
         else:
-            print("out file for {} does not exist in {}".format(pdb_id, out_dir))
+            handle_debug(print, "out file for {} does not exist in {}".format(pdb_id, out_dir))
             bad_proteins.append(",".join((pdb_id, "", "missing out file")) + "\n")
 
-    with open("bad_proteins_file.txt", "wt") as bp_file:
-        bp_file.writelines(bad_proteins)
+    if verbose.VERBOSE:
+        with open("bad_proteins_file.txt", "wt") as bp_file:
+            bp_file.writelines(bad_proteins)
 
 

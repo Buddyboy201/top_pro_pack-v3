@@ -1,16 +1,12 @@
 
 import TPP.API.atom as atom
 import TPP.API.residue as residue
-import os
-import sys
 import numpy as np
 import scipy.spatial
 import networkx as nx
-import csv
 import math
 import time
 import json
-import requests
 from pathlib import Path
 
 #python version=3.7.7+

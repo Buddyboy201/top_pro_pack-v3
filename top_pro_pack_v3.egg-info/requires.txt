@@ -7,3 +7,4 @@ pandas
 networkx
 sqlalchemy
 pathlib
+plotly

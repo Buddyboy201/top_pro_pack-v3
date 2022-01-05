@@ -1,6 +1,5 @@
 
 from mendeleev import element
-from Bio.PDB import Vector
 
 # TODOs:
 # chain handling - handle by seperating out
@@ -24,7 +23,6 @@ class Atom:
             if element_mass.get(self.symbol) is None:
                 element_mass[self.symbol] = element(self.symbol).atomic_weight
             self.atomic_mass = element_mass[self.symbol]
-            self.vector = Vector(x=self.coords[0], y=self.coords[1], z=self.coords[2])
             self.bfactor = bfactor
         else:
             self.symbol = None
@@ -33,7 +31,6 @@ class Atom:
             self.coords = None
             self.mc_sc = None
             self.atomic_mass = None
-            self.vector = None
             self.bfactor = None
 
     def get_json_dict(self):
@@ -66,9 +63,6 @@ class Atom:
 
     def get_bfactor(self):
         return self.bfactor
-
-    def get_vector(self):
-        return self.vector
 
 
 

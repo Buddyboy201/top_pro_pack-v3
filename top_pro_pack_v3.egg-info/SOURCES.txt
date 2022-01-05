@@ -1,3 +1,4 @@
+LICENSE.rst
 README.md
 setup.py
 TPP/__init__.py
@@ -8,7 +9,12 @@ TPP/API/centroid_protein.py
 TPP/API/energy.py
 TPP/API/residue.py
 TPP/API/top_pro_pack.py
-TPP/API/visualizer.py
+TPP/API/verbose.py
+TPP/scripts/__init__.py
+TPP/scripts/chimera_visualizations.py
+TPP/scripts/db_gen.py
+TPP/scripts/heatmap_gen.py
+TPP/scripts/visualizer.py
 top_pro_pack_v3.egg-info/PKG-INFO
 top_pro_pack_v3.egg-info/SOURCES.txt
 top_pro_pack_v3.egg-info/dependency_links.txt

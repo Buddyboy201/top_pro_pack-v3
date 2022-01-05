@@ -1,11 +1,11 @@
 
-import os
 import sys
 from pathlib import Path
 from TPP.API.centroid_protein import CentroidProtein
 import json
 from shutil import copyfile
 from time import perf_counter
+from TPP.API.verbose import handle_debug
 
 def get_config(name, pdb_path, json_path, exclude_backbone, distance_cutoff, ignored_paths):
     config = {
@@ -69,7 +69,7 @@ class Project:
         except:
             raise Exception("{} is invalid/ignored".format(id))
 
-    @_get_function_perf_decorator
+    #@_get_function_perf_decorator # debugging funtion !!!
     def load_protein(self, id, file_name):
         file_path = None
         if Path(file_name).suffix == ".json":
@@ -121,14 +121,14 @@ class Project:
     def load_all_pdbs(self, ids, pdb_filter=None):
         try:
             for pdb_file, id in zip(self.list_pdb_files(), ids):
-                print("loading {} as {} ...".format(Path(pdb_file), id))
+                handle_debug(print, "loading {} as {} ...".format(Path(pdb_file), id))
                 val = self.load_protein(id, Path(pdb_file))
                 if isinstance(val, Exception):
-                    print(val)
+                    handle_debug(print, val)
                 elif isinstance(val, type(None)):
-                    print("{} is ignored".format(pdb_file))
+                    handle_debug(print, "{} is ignored".format(pdb_file))
                 else:
-                    print("{} loaded as {}".format(pdb_file, id))
+                    handle_debug(print, "{} loaded as {}".format(pdb_file, id))
         except:
             raise Exception("All pdbs could not be loaded or handled")
 

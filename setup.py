@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="top_pro_pack-v3",
-    version="1.0.0",
+    version="1.0.3",
     author="Anish Prakriya",
     author_email="aprakriya201@gmail.com",
     description="TODO",
@@ -21,8 +21,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     py_modules=[],
-    install_requires=["mendeleev", "biopython", "scipy", "matplotlib",
-                      "numpy", "pandas", "networkx", "sqlalchemy", "pathlib", "plotly"],
+    install_requires=["mendeleev", "scipy", "matplotlib",
+                      "numpy", "pandas", "networkx", "sqlalchemy", "plotly"],
     python_requires='>=3.6',
     license="MIT"
 )
