@@ -3,7 +3,6 @@ from mendeleev import element
 
 # TODOs:
 # chain handling - handle by seperating out
-# pychimera
 
 element_mass = {}
 
