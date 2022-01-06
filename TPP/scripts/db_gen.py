@@ -128,6 +128,7 @@ def _insert_clique_into_db(clique, pdb_name, layer_ref, conn, table):
 
 def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_residues=34, residue_baseline=30):
     bad_proteins = []
+    buffer = []
     for pdb_id_clean in proj.proteins:
         # pdb_id_clean = pdb_id[len("Menv_color_memb_cen_nor_"):len("Menv_color_memb_cen_nor_")+4]
         if Path(out_dir / Path("{}.out".format(pdb_id_clean))).is_file():
@@ -157,11 +158,11 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
             else:
                 handle_debug(print, len(layer_ref), len(P.residues), pdb_id_clean)
                 cliques = P.centroid_cliques
-                buffer = []
+                # buffer = []
                 for clique in cliques:
                     # insert_clique_into_db(clique, P.name, layer_ref, conn, cliques_table)
                     _push_clique_to_buffer(clique, P.name, layer_ref, buffer)
-                _bulk_insert_cliques_into_db(buffer, conn, cliques_table)
+                # _bulk_insert_cliques_into_db(buffer, conn, cliques_table)
 
             # insert comment 3 here
 
@@ -172,5 +173,7 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
     if verbose.VERBOSE:
         with open("bad_proteins_file.txt", "wt") as bp_file:
             bp_file.writelines(bad_proteins)
+
+    _bulk_insert_cliques_into_db(buffer, conn, cliques_table)
 
 
