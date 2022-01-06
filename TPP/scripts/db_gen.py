@@ -77,7 +77,7 @@ def _insert_clique_into_db(clique, pdb_name, layer_ref, conn, table):
     return result
 
 
-def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_residues=34, residue_baseline=30):
+'''def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_residues=34, residue_baseline=30):
     bad_proteins = []
     for pdb_id in proj.proteins:
         pdb_id_clean = pdb_id[len("Menv_color_memb_cen_nor_"):len("Menv_color_memb_cen_nor_")+4]
@@ -119,6 +119,55 @@ def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_resid
         else:
             handle_debug(print, "out file for {} does not exist in {}".format(pdb_id, out_dir))
             bad_proteins.append(",".join((pdb_id, "", "missing out file")) + "\n")
+
+    if verbose.VERBOSE:
+        with open("bad_proteins_file.txt", "wt") as bp_file:
+            bp_file.writelines(bad_proteins)'''
+
+
+
+def generate_clique_db(proj, cliques_table, conn, out_dir, min_hydrophobic_residues=34, residue_baseline=30):
+    bad_proteins = []
+    for pdb_id_clean in proj.proteins:
+        # pdb_id_clean = pdb_id[len("Menv_color_memb_cen_nor_"):len("Menv_color_memb_cen_nor_")+4]
+        if Path(out_dir / Path("{}.out".format(pdb_id_clean))).is_file():
+            flags = [pdb_id_clean, Path(out_dir / Path("{}.out".format(pdb_id_clean))).__str__()]
+            handle_debug(print, "out file found for {}".format(pdb_id_clean))
+            P = proj.get_protein(pdb_id_clean)
+            hydrophobic_count = 0
+            layer_ref = {}
+            content = _get_filtered_out_lines(Path(out_dir / Path("{}.out".format(pdb_id_clean))))
+            for line in content:
+                res = line[2].strip(" ")
+                id = int(line[1].strip(" "))
+                layer = int(line[4].strip(" "))
+                layer_ref[id] = layer
+                if layer == 3 or layer == 4:
+                    hydrophobic_count += 1
+
+            if hydrophobic_count < min_hydrophobic_residues:
+                flags.append("below hydrophobicity baseline")
+            if len(P.residues) < residue_baseline:
+                flags.append("below residue baseline")
+            if len(layer_ref) != len(P.residues):
+                flags.append("out file / pdb residue count mismatch")
+
+            if len(flags) > 2:
+                bad_proteins.append(",".join(flags) + "\n")
+            else:
+                handle_debug(print, len(layer_ref), len(P.residues), pdb_id_clean)
+                cliques = P.centroid_cliques
+                buffer = []
+                for clique in cliques:
+                    # insert_clique_into_db(clique, P.name, layer_ref, conn, cliques_table)
+                    _push_clique_to_buffer(clique, P.name, layer_ref, buffer)
+                _bulk_insert_cliques_into_db(buffer, conn, cliques_table)
+
+            # insert comment 3 here
+
+        else:
+            handle_debug(print, "out file for {} does not exist in {}".format(pdb_id_clean, out_dir))
+            bad_proteins.append(",".join((pdb_id_clean, "", "missing out file")) + "\n")
 
     if verbose.VERBOSE:
         with open("bad_proteins_file.txt", "wt") as bp_file:
