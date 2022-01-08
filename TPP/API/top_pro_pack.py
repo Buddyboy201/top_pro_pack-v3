@@ -7,6 +7,11 @@ from shutil import copyfile
 from time import perf_counter
 from TPP.API.verbose import handle_debug
 
+
+# filter_bfactor: <default baseline, but can set custom value>
+
+
+
 def get_config(name, pdb_path, json_path, exclude_backbone, distance_cutoff, ignored_paths):
     config = {
         "name": name,
