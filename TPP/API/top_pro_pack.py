@@ -12,20 +12,23 @@ from TPP.API.verbose import handle_debug
 
 
 
-def get_config(name, pdb_path, json_path, exclude_backbone, distance_cutoff, ignored_paths):
+def get_config(name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths):
     config = {
         "name": name,
         "pdb_path": Path(pdb_path).__str__(),
-        "json_path": Path(json_path).__str__(),
         "exclude_backbone": exclude_backbone,
         "distance_cutoff": distance_cutoff,
+        "filter_bfactor": filter_bfactor,
         "ignored_paths": [ Path(file).__str__() for file in ignored_paths ]
     }
     return config
 
-def create_project(config_path, name, pdb_path, json_path, exclude_backbone=False, distance_cutoff=6, ignored_paths=[]):
-    #config_path = Path.cwd() / Path("{}_config.json".format(name))
-    config = get_config(name=name, pdb_path=pdb_path, json_path=json_path, exclude_backbone=exclude_backbone, distance_cutoff=distance_cutoff, ignored_paths=ignored_paths)
+
+# filter_bfactor default baseline currently temp, will be changed later to more ideal value
+def create_project(config_path, name, pdb_path, exclude_backbone=False, distance_cutoff=6, filter_bfactor=60, ignored_paths=[]):
+    config = get_config(name=name, pdb_path=pdb_path, exclude_backbone=exclude_backbone,
+                        distance_cutoff=distance_cutoff, filter_bfactor=filter_bfactor, ignored_paths=ignored_paths)
+
     with open(config_path, "wt") as file:
         json.dump(config, file)
 
@@ -55,15 +58,13 @@ class Project:
             config = json.load(config_file)
             self.distance_cutoff = config["distance_cutoff"]
             self.exclude_backbone = config["exclude_backbone"]
+            self.filter_bfactor = config["filter_bfactor"]
             self.name = config["name"]
             self.pdb_path = Path(config["pdb_path"])
-            self.json_path = Path(config["json_path"])
             self.ignored_paths = [ Path(file) for file in config["ignored_paths"] ]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
                 self.pdb_path.mkdir(parents=True)
-            if not self.json_path.is_dir():
-                self.json_path.mkdir(parents=True)
 
     def get_protein(self, id):
         try:
@@ -76,11 +77,7 @@ class Project:
 
     #@_get_function_perf_decorator # debugging funtion !!!
     def load_protein(self, id, file_name):
-        file_path = None
-        if Path(file_name).suffix == ".json":
-            file_path = self.json_path / Path(file_name)
-        else:
-            file_path = self.pdb_path / Path(file_name)
+        file_path = self.pdb_path / Path(file_name)
         if file_path.is_file():
             if Path(file_path) not in self.ignored_paths:
                 val = self._init_protein(id, file_path)
@@ -95,18 +92,9 @@ class Project:
         else:
             raise Exception("Not a valid {} file".format(file_path.suffix))
 
-
     def add_protein(self, file_path):
         if Path(file_path).is_file():
-            if Path(file_path).suffix == ".json":
-                new_file_path = self.json_path / Path(file_path).name
-                if self.json_links.get(self.name) is not None:
-                    raise Exception("{} already taken by {}".format(self.name, self.json_links.get(self.name)))
-                else:
-                    self.json_links[self.name] = Path(file_path).suffix
-            else:
-                new_file_path = self.pdb_path / Path(file_path).name
-
+            new_file_path = self.pdb_path / Path(file_path).name
             copyfile(Path(file_path), new_file_path)
         else:
             raise Exception("Not a valid {} file".format(file_path.suffix))
@@ -137,20 +125,13 @@ class Project:
         except:
             raise Exception("All pdbs could not be loaded or handled")
 
-    def load_all_json(self, ids):
-        try:
-            for json_file, id in zip(self.json_path.iterdir(), ids):
-                self.load_protein(id, Path(json_file))
-        except:
-            raise Exception("All jsons could not be loaded")
-
     def get_config(self):
         config = {
             "name": self.name,
             "pdb_path": Path(self.pdb_path).__str__(),
-            "json_path": Path(self.json_path).__str__(),
             "exclude_backbone": self.exclude_backbone,
             "distance_cutoff": self.distance_cutoff,
+            "filter_bfactor": self.filter_bfactor,
             "ignored_paths": self.ignored_paths
         }
         return config
@@ -158,20 +139,18 @@ class Project:
     def list_pdb_files(self):
         return self.pdb_path.glob("*.pdb")
 
-    def list_json_files(self):
-        return self.json_path.glob("*.json")
-
     def list_ignored(self):
         return self.ignored_paths
 
     def _init_protein(self, id, file_path):
         try:
-            P = CentroidProtein(id, file_path, exclude_backbone=self.exclude_backbone)
+            P = CentroidProtein(id, file_path, exclude_backbone=self.exclude_backbone,
+                                distance_cutoff=self.distance_cutoff, filter_bfactor=self.filter_bfactor)
         except:
             e = sys.exc_info()[0]
             return Exception(e)
-        if len(P.residues) > 0 and Path(file_path).suffix != ".json":
-            P.generate_centroid_cliques(distance_cutoff=self.distance_cutoff)
+        if len(P.residues) > 0:
+            P.generate_centroid_cliques()
         else:
             return Exception("{} is empty".format(P.name))
         return P

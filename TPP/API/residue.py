@@ -4,31 +4,13 @@ import TPP.API.atom as atom
 
 
 class Residue:
-    def __init__(self, name, resid, atoms, chain, load_json=False, old_resid=None):
-        if not load_json:
-            self.name = name
-            self.resid = resid
-            self.atoms = atoms
-            self.centroid = None
-            self.chain = chain
-            self.old_resid = old_resid
-        else:
-            self.name = None
-            self.resid = None
-            self.atoms = None
-            self.centroid = None
-            self.chain = None
-
-    def get_json_dict(self):
-        return {
-            "name": self.name,
-            "resid": self.resid,
-            "atoms": tuple((atm.get_json_dict() for atm in self.atoms)),
-            "centroid": self.centroid
-        }
-
-    def deserialize_json(self, data):
-        pass
+    def __init__(self, name, resid, atoms, chain, old_resid=None):
+        self.name = name
+        self.resid = resid
+        self.atoms = atoms
+        self.centroid = None
+        self.chain = chain
+        self.old_resid = old_resid
 
     def get_name(self):
         return self.name
