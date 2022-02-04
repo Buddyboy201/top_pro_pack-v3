@@ -1,7 +1,6 @@
 import platform, distro
 
 
-
 def is_linux():
     try:
         distro.linux_distribution()
@@ -9,12 +8,14 @@ def is_linux():
     except:
         return False
 
+
 def is_windows():
     try:
         platform.win32_ver()
         return True
     except:
         return False
+
 
 def is_macos():
     try:

@@ -1,10 +1,10 @@
-
 from mendeleev import element
 
 # TODOs:
 # chain handling - handle by seperating out
 
 element_mass = {}
+
 
 class Atom:
     def __init__(self, symbol, name, atomid, coords, bfactor):
@@ -13,7 +13,12 @@ class Atom:
         self.atomid = atomid
         self.coords = coords  # (), for consistency save everything as np.array()
         self.mc_sc = False
-        if self.name == "CA" or self.name == "C" or self.name == "N" or self.name == "O":
+        if (
+            self.name == "CA"
+            or self.name == "C"
+            or self.name == "N"
+            or self.name == "O"
+        ):
             self.mc_sc = True
         if element_mass.get(self.symbol) is None:
             element_mass[self.symbol] = element(self.symbol).atomic_weight
@@ -40,12 +45,3 @@ class Atom:
 
     def get_bfactor(self):
         return self.bfactor
-
-
-
-
-
-
-
-
-

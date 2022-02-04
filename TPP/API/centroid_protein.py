@@ -1,4 +1,3 @@
-
 import TPP.API.atom as atom
 import TPP.API.residue as residue
 import numpy as np
@@ -9,41 +8,73 @@ import time
 import json
 from pathlib import Path
 
-#python version=3.7.7+
+# python version=3.7.7+
 
 
 def get_dist(coord1, coord2):
-    return math.sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2 + (coord1[2] - coord2[2]) ** 2)
+    return math.sqrt(
+        (coord1[0] - coord2[0]) ** 2
+        + (coord1[1] - coord2[1]) ** 2
+        + (coord1[2] - coord2[2]) ** 2
+    )
 
-AAs = ["ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO",
-               "SER", "THR", "TRP", "TYR", "VAL"]
+
+AAs = [
+    "ALA",
+    "ARG",
+    "ASN",
+    "ASP",
+    "CYS",
+    "GLN",
+    "GLU",
+    "GLY",
+    "HIS",
+    "ILE",
+    "LEU",
+    "LYS",
+    "MET",
+    "PHE",
+    "PRO",
+    "SER",
+    "THR",
+    "TRP",
+    "TYR",
+    "VAL",
+]
 
 ref = {
-            "GLY": 0,
-            "PRO": 1,
-            "ASP": 2,
-            "GLU": 3,
-            "LYS": 4,
-            "ARG": 5,
-            "HIS": 6,
-            "SER": 7,
-            "THR": 8,
-            "ASN": 9,
-            "GLN": 10,
-            "ALA": 11,
-            "MET": 12,
-            "TYR": 13,
-            "TRP": 14,
-            "VAL": 15,
-            "ILE": 16,
-            "LEU": 17,
-            "PHE": 18,
-            "CYS": 19
-        }
+    "GLY": 0,
+    "PRO": 1,
+    "ASP": 2,
+    "GLU": 3,
+    "LYS": 4,
+    "ARG": 5,
+    "HIS": 6,
+    "SER": 7,
+    "THR": 8,
+    "ASN": 9,
+    "GLN": 10,
+    "ALA": 11,
+    "MET": 12,
+    "TYR": 13,
+    "TRP": 14,
+    "VAL": 15,
+    "ILE": 16,
+    "LEU": 17,
+    "PHE": 18,
+    "CYS": 19,
+}
+
 
 class CentroidProtein:
-    def __init__(self, name, file_path, exclude_backbone=False, distance_cutoff=6, filter_bfactor=60):
-
+    def __init__(
+        self,
+        name,
+        file_path,
+        exclude_backbone=False,
+        distance_cutoff=6,
+        filter_bfactor=60,
+    ):
 
         self.name = name
         self.exclude_backbone = exclude_backbone
@@ -54,6 +85,12 @@ class CentroidProtein:
         self.centroid_cliques = []
         self.read_pdb()
 
+    def _check_bfactor_threshold(self, res, bfactor_baseline):
+        for atm in res.get_atoms():
+            if atm.get_bfactor() < bfactor_baseline:
+                return False
+        return True
+
     def read_pdb(self):
         atom_count = 0
         res_count = -1
@@ -62,7 +99,9 @@ class CentroidProtein:
 
             for line in pdb_file:
                 original_res_name = line[16:20].strip(" ")
-                if line[0:4] == "ATOM" and (original_res_name in AAs or original_res_name[1:] in AAs):
+                if line[0:4] == "ATOM" and (
+                    original_res_name in AAs or original_res_name[1:] in AAs
+                ):
                     res_name = line[17:20].strip(" ")
                     res_id = int(line[22:26].strip(" "))
                     if prev_res != res_id:
@@ -82,8 +121,9 @@ class CentroidProtein:
                     chain = str(line[21].strip(" "))
                     atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
                     if self.residues.get(res_id) is None:
-                        self.residues[res_id] = residue.Residue(res_name, res_id, [atm], chain,
-                                                                old_resid=old_res_id)
+                        self.residues[res_id] = residue.Residue(
+                            res_name, res_id, [atm], chain, old_resid=old_res_id
+                        )
                     else:
                         self.residues[res_id].add_atom(atm)
 
@@ -100,8 +140,12 @@ class CentroidProtein:
         centroids = []
         centroid_res = {}
         for res in self.residues:
-            centroid = self.residues[res].get_centroid(exclude_backbone=self.exclude_backbone)
-            if centroid is not None:
+            centroid = self.residues[res].get_centroid(
+                exclude_backbone=self.exclude_backbone
+            )
+            if centroid is not None and self._check_bfactor_threshold(
+                self.residues[res], bfactor_baseline=self.filter_bfactor
+            ):
                 centroids.append(centroid)
                 centroid_res[centroid] = self.residues[res]
         centroids = np.array(centroids)
@@ -130,12 +174,18 @@ class CentroidProtein:
         self.centroid_cliques = list(nx.find_cliques(graph))
         for protein in range(len(self.centroid_cliques)):
             for res in range(len(self.centroid_cliques[protein])):
-                self.centroid_cliques[protein][res] = centroid_res[tuple(list(centroids[self.centroid_cliques[protein][res]]))]
+                self.centroid_cliques[protein][res] = centroid_res[
+                    tuple(list(centroids[self.centroid_cliques[protein][res]]))
+                ]
         self.centroid_cliques = np.array(self.centroid_cliques)
         return self.centroid_cliques
 
-    def get_clique_frequency(self): # TODO: convert freq_arr returned parameter to np array for better integration with upped level classes
-        if self.centroid_cliques is None: # TODO: instead of implicitly taking care of centroid clique gen, have user explicitly gen cliques before calling method by raising exception
+    def get_clique_frequency(
+        self,
+    ):  # TODO: convert freq_arr returned parameter to np array for better integration with upped level classes
+        if (
+            self.centroid_cliques is None
+        ):  # TODO: instead of implicitly taking care of centroid clique gen, have user explicitly gen cliques before calling method by raising exception
             self.generate_centroid_cliques()
         freq_arr = [0, 0, 0, 0, 0, 0, 0]
         for i in self.centroid_cliques:
@@ -153,7 +203,7 @@ class CentroidProtein:
                 for y in range(x + 1, len(coords)):
                     d = get_dist(coords[x], coords[y])
                     distances.append(round(d, 3))
-        return distances # TODO: convert distances to np array
+        return distances  # TODO: convert distances to np array
 
     def get_heatmap_data_centroid(self):
         arr = [
@@ -176,7 +226,7 @@ class CentroidProtein:
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ]
 
         for clique in self.centroid_cliques:
@@ -211,7 +261,7 @@ def get_protein_pairs_matrix(cliques):
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ]
 
     for clique in cliques:
@@ -223,6 +273,7 @@ def get_protein_pairs_matrix(cliques):
                     arr[ref[clique[i].get_name()]][ref[clique[j].get_name()]] += 1
                     arr[ref[clique[j].get_name()]][ref[clique[i].get_name()]] += 1
     return np.array(arr)
+
 
 def get_protein_pairs_matrix_str(cliques):
     arr = [
@@ -245,7 +296,7 @@ def get_protein_pairs_matrix_str(cliques):
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ]
 
     for clique in cliques:

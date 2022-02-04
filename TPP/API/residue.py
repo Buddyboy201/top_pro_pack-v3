@@ -1,5 +1,3 @@
-
-
 import TPP.API.atom as atom
 
 
@@ -43,7 +41,8 @@ class Residue:
             COM[1] += atm.get_mass() * atm.get_coords()[1]
             COM[2] += atm.get_mass() * atm.get_coords()[2]
             mass_sum += atm.get_mass()
-        if mass_sum <= 0: return None
+        if mass_sum <= 0:
+            return None
         COM[0] /= float(mass_sum)
         COM[1] /= float(mass_sum)
         COM[2] /= float(mass_sum)
@@ -51,7 +50,8 @@ class Residue:
         return self.centroid
 
     def get_centroid(self, exclude_backbone=False):
-        if self.centroid == None: self.update_COM(exclude_backbone=exclude_backbone)
+        if self.centroid == None:
+            self.update_COM(exclude_backbone=exclude_backbone)
         return self.centroid
 
     def add_atom(self, atm):
@@ -62,5 +62,3 @@ class Residue:
 
     def get_chain(self):
         return self.chain
-
-

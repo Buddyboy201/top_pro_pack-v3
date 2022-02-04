@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from TPP.API.centroid_protein import CentroidProtein
@@ -11,23 +10,38 @@ from TPP.API.verbose import handle_debug
 # filter_bfactor: <default baseline, but can set custom value>
 
 
-
-def get_config(name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths):
+def get_config(
+    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths
+):
     config = {
         "name": name,
         "pdb_path": Path(pdb_path).__str__(),
         "exclude_backbone": exclude_backbone,
         "distance_cutoff": distance_cutoff,
-        "filter_bfactor": filter_bfactor,
-        "ignored_paths": [ Path(file).__str__() for file in ignored_paths ]
+        "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
+        "ignored_paths": [Path(file).__str__() for file in ignored_paths],
     }
     return config
 
 
 # filter_bfactor default baseline currently temp, will be changed later to more ideal value
-def create_project(config_path, name, pdb_path, exclude_backbone=False, distance_cutoff=6, filter_bfactor=60, ignored_paths=[]):
-    config = get_config(name=name, pdb_path=pdb_path, exclude_backbone=exclude_backbone,
-                        distance_cutoff=distance_cutoff, filter_bfactor=filter_bfactor, ignored_paths=ignored_paths)
+def create_project(
+    config_path,
+    name,
+    pdb_path,
+    exclude_backbone=False,
+    distance_cutoff=6,
+    filter_bfactor=60,
+    ignored_paths=[],
+):
+    config = get_config(
+        name=name,
+        pdb_path=pdb_path,
+        exclude_backbone=exclude_backbone,
+        distance_cutoff=distance_cutoff,
+        filter_bfactor=filter_bfactor,
+        ignored_paths=ignored_paths,
+    )
 
     with open(config_path, "wt") as file:
         json.dump(config, file)
@@ -40,7 +54,10 @@ class Project:
         self.proteins = {}
 
     def generate_default_ids(self):
-        return [f.stem if f not in self.list_ignored() else "" for f in self.list_pdb_files()]
+        return [
+            f.stem if f not in self.list_ignored() else ""
+            for f in self.list_pdb_files()
+        ]
 
     def _get_function_perf_decorator(func):
         def inner(self, id, filename):
@@ -49,6 +66,7 @@ class Project:
             end = perf_counter()
             print(end - start)
             return out
+
         return inner
 
     def _init_project(self, config_path):
@@ -61,7 +79,7 @@ class Project:
             self.filter_bfactor = config["filter_bfactor"]
             self.name = config["name"]
             self.pdb_path = Path(config["pdb_path"])
-            self.ignored_paths = [ Path(file) for file in config["ignored_paths"] ]
+            self.ignored_paths = [Path(file) for file in config["ignored_paths"]]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
                 self.pdb_path.mkdir(parents=True)
@@ -75,7 +93,7 @@ class Project:
         except:
             raise Exception("{} is invalid/ignored".format(id))
 
-    #@_get_function_perf_decorator # debugging funtion !!!
+    # @_get_function_perf_decorator # debugging funtion !!!
     def load_protein(self, id, file_name):
         file_path = self.pdb_path / Path(file_name)
         if file_path.is_file():
@@ -132,7 +150,7 @@ class Project:
             "exclude_backbone": self.exclude_backbone,
             "distance_cutoff": self.distance_cutoff,
             "filter_bfactor": self.filter_bfactor,
-            "ignored_paths": self.ignored_paths
+            "ignored_paths": self.ignored_paths,
         }
         return config
 
@@ -144,8 +162,13 @@ class Project:
 
     def _init_protein(self, id, file_path):
         try:
-            P = CentroidProtein(id, file_path, exclude_backbone=self.exclude_backbone,
-                                distance_cutoff=self.distance_cutoff, filter_bfactor=self.filter_bfactor)
+            P = CentroidProtein(
+                id,
+                file_path,
+                exclude_backbone=self.exclude_backbone,
+                distance_cutoff=self.distance_cutoff,
+                filter_bfactor=self.filter_bfactor,
+            )
         except:
             e = sys.exc_info()[0]
             return Exception(e)
@@ -154,4 +177,3 @@ class Project:
         else:
             return Exception("{} is empty".format(P.name))
         return P
-
