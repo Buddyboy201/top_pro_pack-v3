@@ -4,9 +4,6 @@ import numpy as np
 import scipy.spatial
 import networkx as nx
 import math
-import time
-import json
-from pathlib import Path
 
 # python version=3.7.7+
 
@@ -83,15 +80,9 @@ class CentroidProtein:
         self.file_path = file_path
         self.residues = {}
         self.centroid_cliques = []
-        self.read_pdb()
+        self._read_pdb()
 
-    def _check_bfactor_threshold(self, res, bfactor_baseline):
-        for atm in res.get_atoms():
-            if atm.get_bfactor() < bfactor_baseline:
-                return False
-        return True
-
-    def read_pdb(self):
+    def _read_pdb(self):
         atom_count = 0
         res_count = -1
         prev_res = -1
@@ -126,6 +117,12 @@ class CentroidProtein:
                         )
                     else:
                         self.residues[res_id].add_atom(atm)
+
+    def _check_bfactor_threshold(self, res, bfactor_baseline):
+        for atm in res.get_atoms():
+            if atm.get_bfactor() < bfactor_baseline:
+                return False
+        return True
 
     def get_name(self):
         return self.name
