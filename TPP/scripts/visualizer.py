@@ -5,7 +5,17 @@ import pandas as pd
 from pathlib import Path
 import plotly.express as px
 import numpy as np
+import py3Dmol
 
+
+def view_pdb(pdb_path):
+  with open(pdb_path, "rt") as file:
+    view = py3Dmol.view(width=800, height=600)
+    view.addModel(file.read(), "pdb")
+    style = {'cartoon': {'colorscheme': 'chain'}}
+    view.setStyle({'model': -1}, style)
+    view.zoomTo()
+    view.show()
 
 def draw_countplot(data, x, title):
     df = pd.DataFrame()
