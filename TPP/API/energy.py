@@ -83,7 +83,7 @@ class EnergyND2:
                     pair.sort()
                     val = ";".join(pair)
                     self.res_hash[2][val] += 1
-            if self.M > 3:
+            if self.M > 3: # upper-bound currently at M=4
                 for i in range(len(clique)):
                     for j in range(i + 1, len(clique)):
                         for k in range(j + 1, len(clique)):
@@ -91,6 +91,9 @@ class EnergyND2:
                             triplet.sort()
                             val = ";".join(triplet)
                             self.res_hash[3][val] += 1
+                clique.sort()
+                val = ";".join(clique)
+                self.res_hash[4][val] += 1
             elif self.M == 3:
                 clique.sort()
                 val = ";".join(clique)
@@ -156,8 +159,18 @@ class EnergyND2:
             return 0
         return -np.log(P_ABC / P_indv)
 
-    def _compute_epair_4(self, residues, total_counts):
-        pass
+    def _compute_epair_4(self, residues):
+        if len(residues) != 4:
+            raise Exception("Invalid residues indexing of dim: {}".format(len(residues)))
+        A, B, C, D = residues
+        counts_A, counts_BCD, counts_ABCD = self.get_counts([A]), self.get_counts([B, C, D]), self.get_counts(residues)
+        P_A = counts_A / self.total_res
+        P_BCD = counts_BCD / self.total_res
+        P_ABCD = counts_ABCD / self.total_res
+        P_indv = P_A * P_BCD
+        if P_indv == 0 or P_ABCD == 0:
+            return  0
+        return -np.log(P_ABCD / P_indv)
 
     def _compute_epair(self, residues):
         if self.M == 2:

@@ -4,6 +4,7 @@ import numpy as np
 import scipy.spatial
 import networkx as nx
 import math
+from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 
 # python version=3.7.7+
 
@@ -81,6 +82,10 @@ class CentroidProtein:
         self.residues = {}
         self.centroid_cliques = []
         self._read_pdb()
+        self.ss = None
+
+    def update_ss(self):
+        self.ss = dssp_dict_from_pdb_file(self.file_path, DSSP="mkdssp")
 
     def _read_pdb(self):
         atom_count = 0

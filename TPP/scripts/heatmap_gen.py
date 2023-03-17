@@ -5,8 +5,8 @@ from pandas import DataFrame
 import os
 from pathlib import Path
 
-
-def generate_heatmap(name, M, conn, heatmap_dir, layer="ALL"):
+# DEPRECATED: SQLITE DB NO LONGER SUPPORTED
+def generate_heatmap_old(name, M, conn, heatmap_dir, layer="ALL"):
     stmt = None
     HYDROPHOBIC_DIFF = ["1", "2", "5", "6"]
     INTERFACE_DIFF = ["1", "3", "4", "6"]
@@ -105,7 +105,7 @@ def generate_heatmap(name, M, conn, heatmap_dir, layer="ALL"):
     else:
         print("Higher order cliques beyond M=3 not yet supported")
 
-def generate_heatmap_2(name, db_path, M, heatmap_dir, layer="ALL"): # TODO: Needs more testing
+def generate_heatmap(name, db_path, M, heatmap_dir, layer="ALL"):
     HYDROPHOBIC_DIFF = ["1", "2", "5", "6"]
     INTERFACE_DIFF = ["1", "3", "4", "6"]
     WATER_DIFF = ["2", "3", "4", "5"]
@@ -195,10 +195,22 @@ def generate_heatmap_2(name, db_path, M, heatmap_dir, layer="ALL"): # TODO: Need
                 "gist_rainbow_r",
                 path_to_dir=os.path.abspath(heatmap_dir),
             )
+    elif M == 4:
+        for i in ref:
+            for j in ref:
+                draw_heatmap(
+                    name + "_{}_{}".format(i, j),
+                    DataFrame(E_test.STATIC_EPAIR_TABLE[(ref[i], ref[j])]),
+                    AAs,
+                    AAs,
+                    "gist_rainbow_r",
+                    path_to_dir=os.path.abspath(heatmap_dir)
+                )
     else:
-        print("Higher order cliques beyond M=3 not yet supported")
+        print("Higher order cliques beyond M=4 not yet supported")
 
-def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created):
+# DEPRECATED: SQLITE DB NO LONGER SUPPORTED
+def generate_all_2d_3d_heatmaps_old(path_to_heatmaps_dir, conn, date_created):
 
     ### ALL_LAYERS ###
 
@@ -214,10 +226,10 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created):
     if not all_layers_3d_path.is_dir():
         all_layers_3d_path.mkdir(parents=True)
 
-    generate_heatmap(
+    generate_heatmap_old(
         f"ALL_LAYERS_E_test_M2_{date_created}", 2, conn, all_layers_2d_path
     )
-    generate_heatmap(
+    generate_heatmap_old(
         f"ALL_LAYERS_E_test_M3_{date_created}", 3, conn, all_layers_3d_path
     )
 
@@ -235,14 +247,14 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created):
     if not hydrophobic_3d_path.is_dir():
         hydrophobic_3d_path.mkdir(parents=True)
 
-    generate_heatmap(
+    generate_heatmap_old(
         f"HYDROPHOBIC_E_test_M2_{date_created}",
         2,
         conn,
         hydrophobic_2d_path,
         layer="HYDROPHOBIC",
     )
-    generate_heatmap(
+    generate_heatmap_old(
         f"HYDROPHOBIC_E_test_M3_{date_created}",
         3,
         conn,
@@ -264,14 +276,14 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created):
     if not interface_3d_path.is_dir():
         interface_3d_path.mkdir(parents=True)
 
-    generate_heatmap(
+    generate_heatmap_old(
         f"INTERFACE_E_test_M2_{date_created}",
         2,
         conn,
         interface_2d_path,
         layer="INTERFACE",
     )
-    generate_heatmap(
+    generate_heatmap_old(
         f"INTERFACE_E_test_M3_{date_created}",
         3,
         conn,
@@ -293,14 +305,14 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, date_created):
     if not water_3d_path.is_dir():
         water_3d_path.mkdir(parents=True)
 
-    generate_heatmap(
+    generate_heatmap_old(
         f"WATER_E_test_M2_{date_created}", 2, conn, water_2d_path, layer="WATER"
     )
-    generate_heatmap(
+    generate_heatmap_old(
         f"WATER_E_test_M3_{date_created}", 3, conn, water_3d_path, layer="WATER"
     )
 
-def generate_all_2d_3d_heatmaps_2(path_to_heatmaps_dir, db_path, date_created):
+def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created):
 
     ### ALL_LAYERS ###
 
@@ -310,17 +322,25 @@ def generate_all_2d_3d_heatmaps_2(path_to_heatmaps_dir, db_path, date_created):
     all_layers_3d_path = Path(
         os.path.join(os.path.abspath(path_to_heatmaps_dir), "all_layers_plots", "3d")
     )
+    all_layers_4d_path = Path(
+        os.path.join(os.path.abspath(path_to_heatmaps_dir), "all_layers_plots", "4d")
+    )
 
     if not all_layers_2d_path.is_dir():
         all_layers_2d_path.mkdir(parents=True)
     if not all_layers_3d_path.is_dir():
         all_layers_3d_path.mkdir(parents=True)
+    if not all_layers_4d_path.is_dir():
+        all_layers_4d_path.mkdir(parents=True)
 
-    generate_heatmap_2(
+    generate_heatmap(
         f"ALL_LAYERS_E_test_M2_{date_created}", db_path, 2, all_layers_2d_path
     )
-    generate_heatmap_2(
+    generate_heatmap(
         f"ALL_LAYERS_E_test_M3_{date_created}", db_path, 3, all_layers_3d_path
+    )
+    generate_heatmap(
+        f"ALL_LAYERS_E_test_M4_{date_created}", db_path, 4, all_layers_4d_path
     )
 
     ### HYDROPHOBIC_LAYER ###
@@ -331,24 +351,36 @@ def generate_all_2d_3d_heatmaps_2(path_to_heatmaps_dir, db_path, date_created):
     hydrophobic_3d_path = Path(
         os.path.join(os.path.abspath(path_to_heatmaps_dir), "hydrophobic_plots", "3d")
     )
+    hydrophobic_4d_path = Path(
+        os.path.join(os.path.abspath(path_to_heatmaps_dir), "hydrophobic_plots", "4d")
+    )
 
     if not hydrophobic_2d_path.is_dir():
         hydrophobic_2d_path.mkdir(parents=True)
     if not hydrophobic_3d_path.is_dir():
         hydrophobic_3d_path.mkdir(parents=True)
+    if not hydrophobic_4d_path.is_dir():
+        hydrophobic_4d_path.mkdir(parents=True)
 
-    generate_heatmap_2(
+    generate_heatmap(
         f"HYDROPHOBIC_E_test_M2_{date_created}",
         db_path,
         2,
         hydrophobic_2d_path,
         layer="HYDROPHOBIC",
     )
-    generate_heatmap_2(
+    generate_heatmap(
         f"HYDROPHOBIC_E_test_M3_{date_created}",
         db_path,
         3,
         hydrophobic_3d_path,
+        layer="HYDROPHOBIC",
+    )
+    generate_heatmap(
+        f"HYDROPHOBIC_E_test_M4_{date_created}",
+        db_path,
+        4,
+        hydrophobic_4d_path,
         layer="HYDROPHOBIC",
     )
 
@@ -360,24 +392,36 @@ def generate_all_2d_3d_heatmaps_2(path_to_heatmaps_dir, db_path, date_created):
     interface_3d_path = Path(
         os.path.join(os.path.abspath(path_to_heatmaps_dir), "interface_plots", "3d")
     )
+    interface_4d_path = Path(
+        os.path.join(os.path.abspath(path_to_heatmaps_dir), "interface_plots", "4d")
+    )
 
     if not interface_2d_path.is_dir():
         interface_2d_path.mkdir(parents=True)
     if not interface_3d_path.is_dir():
         interface_3d_path.mkdir(parents=True)
+    if not interface_4d_path.is_dir():
+        interface_4d_path.mkdir(parents=True)
 
-    generate_heatmap_2(
+    generate_heatmap(
         f"INTERFACE_E_test_M2_{date_created}",
         db_path,
         2,
         interface_2d_path,
         layer="INTERFACE",
     )
-    generate_heatmap_2(
+    generate_heatmap(
         f"INTERFACE_E_test_M3_{date_created}",
         db_path,
         3,
         interface_3d_path,
+        layer="INTERFACE",
+    )
+    generate_heatmap(
+        f"INTERFACE_E_test_M4_{date_created}",
+        db_path,
+        4,
+        interface_4d_path,
         layer="INTERFACE",
     )
 
@@ -389,19 +433,26 @@ def generate_all_2d_3d_heatmaps_2(path_to_heatmaps_dir, db_path, date_created):
     water_3d_path = Path(
         os.path.join(os.path.abspath(path_to_heatmaps_dir), "water_plots", "3d")
     )
+    water_4d_path = Path(
+        os.path.join(os.path.abspath(path_to_heatmaps_dir), "water_plots", "4d")
+    )
 
     if not water_2d_path.is_dir():
         water_2d_path.mkdir(parents=True)
     if not water_3d_path.is_dir():
         water_3d_path.mkdir(parents=True)
+    if not water_4d_path.is_dir():
+        water_4d_path.mkdir(parents=True)
 
-    generate_heatmap_2(
+    generate_heatmap(
         f"WATER_E_test_M2_{date_created}", db_path, 2, water_2d_path, layer="WATER"
     )
-    generate_heatmap_2(
+    generate_heatmap(
         f"WATER_E_test_M3_{date_created}", db_path, 3, water_3d_path, layer="WATER"
+    )
+    generate_heatmap(
+        f"WATER_E_test_M4_{date_created}", db_path, 4, water_4d_path, layer="WATER"
     )
 
 
 
-# generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, conn, "9_1_2021")

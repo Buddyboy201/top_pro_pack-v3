@@ -6,7 +6,9 @@ def get_rows(db_path, params, size=2):
     with open(db_path, 'rt', newline='') as db_file:
         reader = csv.DictReader(db_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
         for row in reader:
-            if int(row['size']) == size:
+            if type(size) == type(list()) and int(row['size']) in size:
+                res.append([row[param] for param in params])
+            elif type(size) == type(int()) and int(row['size']) == size:
                 res.append([row[param] for param in params])
     return res
 

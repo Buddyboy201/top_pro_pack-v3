@@ -62,3 +62,6 @@ class Residue:
 
     def get_chain(self):
         return self.chain
+
+    def get_ss(self):
+        return self.ss
