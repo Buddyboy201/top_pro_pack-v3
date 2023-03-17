@@ -17,10 +17,6 @@ def view_pdb(pdb_path):
     view.zoomTo()
     view.show()
 
-def view_pdb(pdb_path, protein_obj):
-    with open(pdb_path, "rt") as file:
-        view = py3Dmol.view(width=800, height=600)
-
 def draw_countplot(data, x, title):
     df = pd.DataFrame()
     df[x] = data
