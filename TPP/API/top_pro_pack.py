@@ -133,13 +133,16 @@ class Project:
         try:
             for pdb_file, id in zip(self.list_pdb_files(), ids):
                 handle_debug(print, "loading {} as {} ...".format(Path(pdb_file), id))
-                val = self.load_protein(id, Path(pdb_file))
-                if isinstance(val, Exception):
-                    handle_debug(print, val)
-                elif isinstance(val, type(None)):
-                    handle_debug(print, "{} is ignored".format(pdb_file))
-                else:
-                    handle_debug(print, "{} loaded as {}".format(pdb_file, id))
+                try:
+                    val = self.load_protein(id, Path(pdb_file))
+                    if isinstance(val, Exception):
+                        handle_debug(print, val)
+                    elif isinstance(val, type(None)):
+                        handle_debug(print, "{} is ignored".format(pdb_file))
+                    else:
+                        handle_debug(print, "{} loaded as {}".format(pdb_file, id))
+                except:
+                    print("{} could not be loaded".format(pdb_file))
         except:
             raise Exception("All pdbs could not be loaded or handled")
 

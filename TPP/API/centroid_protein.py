@@ -115,7 +115,7 @@ class CentroidProtein:
                     symbol = atom_name[0]
                     coords = (coordx, coordy, coordz)
                     chain = str(line[21].strip(" "))
-                    atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor)
+                    atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor) # TODO: bfactor is per res not atm
                     if self.residues.get(res_id) is None:
                         self.residues[res_id] = residue.Residue(
                             res_name, res_id, [atm], chain, old_resid=old_res_id

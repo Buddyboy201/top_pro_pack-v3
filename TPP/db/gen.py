@@ -2,6 +2,7 @@ import csv
 from TPP.API.verbose import handle_debug
 from TPP.API import verbose
 from pathlib import Path
+from bs4 import BeautifulSoup
 
 
 def _get_filtered_out_lines(out_file):
@@ -13,6 +14,13 @@ def _get_filtered_out_lines(out_file):
             if line.split(" ")[0].strip(" ") == "2016Menv"
         ]
 
+def _get_tmdet_tm_count(tmdet_file):
+    with open(tmdet_file, "rt") as tmdet_file:
+        region_data = BeautifulSoup(tmdet_file, "xml").find_all("REGION", {'type': ['m', 'M']})
+        tm_count = 0
+        for region in region_data:
+            tm_count += int(region.get("pdb_end")) - int(region.get("pdb_beg")) + 1
+        return tm_count
 
 def _get_layer_resid(resid, layer_ref):
     return layer_ref[resid + 1]
@@ -30,9 +38,12 @@ def _get_clique_with_old_resid_only(sorted_clique):
     return ";".join([str(i.old_resid) for i in sorted_clique])
 
 
-def _get_clique_layer_info_only(sorted_clique, layer_ref):
-    resids = [res.resid for res in sorted_clique]
-    return ";".join([str(_get_layer_resid(resid, layer_ref)) for resid in resids])
+def _get_clique_layer_info_only(sorted_clique, layer_ref=None):
+    if layer_ref is not None:
+        resids = [res.resid for res in sorted_clique]
+        return ";".join([str(_get_layer_resid(resid, layer_ref)) for resid in resids])
+    else:
+        return "NULL"
 
 
 def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer):
@@ -50,8 +61,53 @@ def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer):
     )
     return row_counter + 1
 
+def gen_clique_db_TMAF(proj, db_path, tmdet_dir, min_tm_residues=34, residue_baseline=30, bad_proteins_file_path="bad_proteins_file.txt"):
+    with open(db_path, 'wt', newline='') as db_file:
+        headers = ["id", "size", "clique", "resid", "oldresid", "layerinfo", "pdbname"]
+        row_counter = 0
+        writer = csv.DictWriter(db_file, fieldnames=headers, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+        bad_proteins = []
+        buffer = []
+        for pdb_id_clean in proj.proteins:
+            # check for tmdet_file
+            if Path(tmdet_dir / Path(f"{pdb_id_clean}_tmdet.xml")).is_file():
+                # init flags
+                flags = [
+                    pdb_id_clean,
+                    Path(tmdet_dir / Path(f"{pdb_id_clean}_tmdet.xml")).__str__(),
+                ]
+                handle_debug(print, "tmdet file found for {}".format(pdb_id_clean))
+                P = proj.get_protein(pdb_id_clean)
+                hydrophobic_count = _get_tmdet_tm_count(Path(tmdet_dir / Path(f"{pdb_id_clean}_tmdet.xml")))
+                layer_ref = None
+                if hydrophobic_count < min_tm_residues:
+                    flags.append("below tm residue baseline")
+                if len(P.residues) < residue_baseline:
+                    flags.append("below residue baseline")
 
-def gen_clique_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_baseline=30):
+                if len(flags) > 2:
+                    bad_proteins.append(",".join(flags) + "\n")
+                else:
+                    # handle_debug(print, None, len(P.residues), pdb_id_clean)
+                    cliques = P.centroid_cliques
+                    # buffer = []
+                    for clique in cliques:
+                        row_counter = _push_clique_to_buffer(clique, P.name, layer_ref, row_counter, buffer)
+            else:
+                handle_debug(
+                    print,
+                    "tmdet file for {} does not exist in {}".format(pdb_id_clean, tmdet_dir),
+                )
+                bad_proteins.append(",".join((pdb_id_clean, "", "missing tmdet file")) + "\n")
+        if verbose.VERBOSE:
+            with open(bad_proteins_file_path, "wt") as bp_file:
+                bp_file.writelines(bad_proteins)
+
+        writer.writerows(buffer)
+
+
+def gen_clique_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_baseline=30, bad_proteins_file_path="bad_proteins_file.txt"):
     with open(db_path, 'wt', newline='') as db_file:
         headers = ["id", "size", "clique", "resid", "oldresid", "layerinfo", "pdbname"]
         row_counter = 0
@@ -91,7 +147,7 @@ def gen_clique_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_b
                 if len(flags) > 2:
                     bad_proteins.append(",".join(flags) + "\n")
                 else:
-                    handle_debug(print, len(layer_ref), len(P.residues), pdb_id_clean)
+                    # handle_debug(print, len(layer_ref), len(P.residues), pdb_id_clean)
                     cliques = P.centroid_cliques
                     # buffer = []
                     for clique in cliques:
@@ -104,7 +160,7 @@ def gen_clique_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_b
                 bad_proteins.append(",".join((pdb_id_clean, "", "missing out file")) + "\n")
 
         if verbose.VERBOSE:
-            with open("bad_proteins_file.txt", "wt") as bp_file:
+            with open(bad_proteins_file_path, "wt") as bp_file:
                 bp_file.writelines(bad_proteins)
 
         writer.writerows(buffer)
