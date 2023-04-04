@@ -9,14 +9,6 @@ from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 # python version=3.7.7+
 
 
-def get_dist(coord1, coord2):
-    return math.sqrt(
-        (coord1[0] - coord2[0]) ** 2
-        + (coord1[1] - coord2[1]) ** 2
-        + (coord1[2] - coord2[2]) ** 2
-    )
-
-
 AAs = [
     "ALA",
     "ARG",
@@ -72,12 +64,16 @@ class CentroidProtein:
         exclude_backbone=False,
         distance_cutoff=6,
         filter_bfactor=60,
+        filter_tmaf_conf=.75,
+        tmaf=False
     ):
 
         self.name = name
         self.exclude_backbone = exclude_backbone
         self.distance_cutoff = distance_cutoff
         self.filter_bfactor = filter_bfactor
+        self.filter_tmaf_conf = filter_tmaf_conf
+        self.tmaf = tmaf
         self.file_path = file_path
         self.residues = {}
         self.centroid_cliques = []
@@ -115,19 +111,16 @@ class CentroidProtein:
                     symbol = atom_name[0]
                     coords = (coordx, coordy, coordz)
                     chain = str(line[21].strip(" "))
-                    atm = atom.Atom(symbol, atom_name, atom_id, coords, bfactor) # TODO: bfactor is per res not atm
+                    atm = atom.Atom(symbol, atom_name, atom_id, coords)
                     if self.residues.get(res_id) is None:
                         self.residues[res_id] = residue.Residue(
-                            res_name, res_id, [atm], chain, old_resid=old_res_id
+                            res_name, res_id, [atm], chain, bfactor, old_resid=old_res_id
                         )
                     else:
                         self.residues[res_id].add_atom(atm)
 
     def _check_bfactor_threshold(self, res, bfactor_baseline):
-        for atm in res.get_atoms():
-            if atm.get_bfactor() < bfactor_baseline:
-                return False
-        return True
+        return res.get_bfactor() < bfactor_baseline
 
     def get_name(self):
         return self.name
@@ -139,6 +132,13 @@ class CentroidProtein:
         return self.residues
 
     def generate_centroid_cliques(self):
+        def _get_dist(coord1, coord2):
+            return math.sqrt(
+                (coord1[0] - coord2[0]) ** 2
+                + (coord1[1] - coord2[1]) ** 2
+                + (coord1[2] - coord2[2]) ** 2
+            )
+
         centroids = []
         centroid_res = {}
         for res in self.residues:
@@ -155,22 +155,22 @@ class CentroidProtein:
         edges = []
         for n in tri.simplices:
             edge = sorted([n[0], n[1]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[0], n[2]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[0], n[3]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[1], n[2]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[1], n[3]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[2], n[3]])
-            if get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
         graph = nx.Graph(edges)
         self.centroid_cliques = list(nx.find_cliques(graph))
@@ -182,131 +182,4 @@ class CentroidProtein:
         self.centroid_cliques = np.array(self.centroid_cliques)
         return self.centroid_cliques
 
-    def get_clique_frequency(
-        self,
-    ):  # TODO: convert freq_arr returned parameter to np array for better integration with upped level classes
-        if (
-            self.centroid_cliques is None
-        ):  # TODO: instead of implicitly taking care of centroid clique gen, have user explicitly gen cliques before calling method by raising exception
-            self.generate_centroid_cliques()
-        freq_arr = [0, 0, 0, 0, 0, 0, 0]
-        for i in self.centroid_cliques:
-            freq_arr[len(i)] += 1
-        return freq_arr
 
-    def get_centroid_clique_distances(self):
-        distances = []
-        for i in range(len(self.centroid_cliques)):
-            clique = self.centroid_cliques[i]
-            coords = []
-            for j in clique:
-                coords.append(j.get_centroid())
-            for x in range(len(coords) - 1):
-                for y in range(x + 1, len(coords)):
-                    d = get_dist(coords[x], coords[y])
-                    distances.append(round(d, 3))
-        return distances  # TODO: convert distances to np array
-
-    def get_heatmap_data_centroid(self):
-        arr = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ]
-
-        for clique in self.centroid_cliques:
-            for i in range(len(clique)):
-                for j in range(i + 1, len(clique)):
-                    if ref[clique[i].get_name()] == ref[clique[j].get_name()]:
-                        arr[ref[clique[i].get_name()]][ref[clique[j].get_name()]] += 1
-                    else:
-                        arr[ref[clique[i].get_name()]][ref[clique[j].get_name()]] += 1
-                        arr[ref[clique[j].get_name()]][ref[clique[i].get_name()]] += 1
-        return np.array(arr)
-
-
-def get_protein_pairs_matrix(cliques):
-    arr = [
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]
-
-    for clique in cliques:
-        for i in range(len(clique)):
-            for j in range(i + 1, len(clique)):
-                if ref[clique[i].get_name()] == ref[clique[j].get_name()]:
-                    arr[ref[clique[i].get_name()]][ref[clique[j].get_name()]] += 1
-                else:
-                    arr[ref[clique[i].get_name()]][ref[clique[j].get_name()]] += 1
-                    arr[ref[clique[j].get_name()]][ref[clique[i].get_name()]] += 1
-    return np.array(arr)
-
-
-def get_protein_pairs_matrix_str(cliques):
-    arr = [
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]
-
-    for clique in cliques:
-        for i in range(len(clique)):
-            for j in range(i + 1, len(clique)):
-                if ref[clique[i]] == ref[clique[j]]:
-                    arr[ref[clique[i]]][ref[clique[j]]] += 1
-                else:
-                    arr[ref[clique[i]]][ref[clique[j]]] += 1
-                    arr[ref[clique[j]]][ref[clique[i]]] += 1
-    return np.array(arr)

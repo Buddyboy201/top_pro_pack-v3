@@ -1,7 +1,4 @@
-import TPP.API.centroid_protein as centroid_protein
 import numpy as np
-import pandas as pd
-import math
 from itertools import permutations, product
 
 
@@ -45,7 +42,6 @@ class EnergyND2:
         for res in self.ref.keys():
             self.res_hash[1][res] = 0
         if self.M >= 2:
-
             for combo in product(list(self.ref.keys()), list(self.ref.keys())):
                 vals = list(combo)
                 vals.sort()

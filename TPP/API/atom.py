@@ -7,7 +7,7 @@ element_mass = {}
 
 
 class Atom:
-    def __init__(self, symbol, name, atomid, coords, bfactor):
+    def __init__(self, symbol, name, atomid, coords):
         self.symbol = symbol.capitalize()
         self.name = name
         self.atomid = atomid
@@ -23,7 +23,6 @@ class Atom:
         if element_mass.get(self.symbol) is None:
             element_mass[self.symbol] = element(self.symbol).atomic_weight
         self.atomic_mass = element_mass[self.symbol]
-        self.bfactor = bfactor
 
     def is_mainchain(self):
         return self.mc_sc
@@ -42,6 +41,3 @@ class Atom:
 
     def get_mass(self):
         return self.atomic_mass
-
-    def get_bfactor(self):
-        return self.bfactor
