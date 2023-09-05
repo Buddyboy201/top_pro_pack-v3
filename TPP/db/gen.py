@@ -45,8 +45,15 @@ def _get_clique_layer_info_only(sorted_clique, layer_ref=None):
     else:
         return "NULL"
 
+def _get_clique_conf(sorted_clique, tmaf=False):
+    if tmaf:
+        return ";".join([str(1) for res in sorted_clique])
+    else:
+        return ";".join([str(round(res.get_conf(), 4)) for res in sorted_clique])
 
-def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer):
+
+
+def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer, tmaf=False):
     sorted_clique = sorted([res for res in clique], key=lambda r: r.name)
     buffer.append(
         {
@@ -56,6 +63,7 @@ def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer):
             "resid": _get_clique_with_resid_only(sorted_clique),
             "oldresid": _get_clique_with_old_resid_only(sorted_clique),
             "layerinfo": _get_clique_layer_info_only(sorted_clique, layer_ref),
+            "tmafconf": _get_clique_conf(sorted_clique, tmaf=tmaf),
             "pdbname": pdb_name,
         }
     )
@@ -63,7 +71,7 @@ def _push_clique_to_buffer(clique, pdb_name, layer_ref, row_counter, buffer):
 
 def gen_clique_db_TMAF(proj, db_path, tmdet_dir, min_tm_residues=34, residue_baseline=30, bad_proteins_file_path="bad_proteins_file.txt"):
     with open(db_path, 'wt', newline='') as db_file:
-        headers = ["id", "size", "clique", "resid", "oldresid", "layerinfo", "pdbname"]
+        headers = ["id", "size", "clique", "resid", "oldresid", "layerinfo", "tmafconf", "pdbname"]
         row_counter = 0
         writer = csv.DictWriter(db_file, fieldnames=headers, delimiter=",", quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
@@ -93,7 +101,7 @@ def gen_clique_db_TMAF(proj, db_path, tmdet_dir, min_tm_residues=34, residue_bas
                     cliques = P.centroid_cliques
                     # buffer = []
                     for clique in cliques:
-                        row_counter = _push_clique_to_buffer(clique, P.name, layer_ref, row_counter, buffer)
+                        row_counter = _push_clique_to_buffer(clique, P.name, layer_ref, row_counter, buffer, tmaf=True)
             else:
                 handle_debug(
                     print,

@@ -11,7 +11,7 @@ from TPP.API.verbose import handle_debug
 
 
 def get_config(
-    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths
+    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf
 ):
     config = {
         "name": name,
@@ -20,6 +20,7 @@ def get_config(
         "distance_cutoff": distance_cutoff,
         "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
         "ignored_paths": [Path(file).__str__() for file in ignored_paths],
+        "tmaf": tmaf
     }
     return config
 
@@ -32,6 +33,7 @@ def create_project(
     exclude_backbone=False,
     distance_cutoff=6,
     filter_bfactor=60,
+    tmaf=False,
     ignored_paths=[],
 ):
     config = get_config(
@@ -41,6 +43,7 @@ def create_project(
         distance_cutoff=distance_cutoff,
         filter_bfactor=filter_bfactor,
         ignored_paths=ignored_paths,
+        tmaf=tmaf
     )
 
     with open(config_path, "wt") as file:
@@ -80,6 +83,7 @@ class Project:
             self.name = config["name"]
             self.pdb_path = Path(config["pdb_path"])
             self.ignored_paths = [Path(file) for file in config["ignored_paths"]]
+            self.tmaf = config["tmaf"]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
                 self.pdb_path.mkdir(parents=True)
@@ -154,6 +158,7 @@ class Project:
             "distance_cutoff": self.distance_cutoff,
             "filter_bfactor": self.filter_bfactor,
             "ignored_paths": self.ignored_paths,
+            "tmaf": self.tmaf
         }
         return config
 
@@ -171,6 +176,7 @@ class Project:
                 exclude_backbone=self.exclude_backbone,
                 distance_cutoff=self.distance_cutoff,
                 filter_bfactor=self.filter_bfactor,
+                tmaf=self.tmaf
             )
         except:
             e = sys.exc_info()[0]

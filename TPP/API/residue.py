@@ -10,6 +10,7 @@ class Residue:
         self.chain = chain
         self.old_resid = old_resid
         self.bfactor = bfactor
+        self.conf = bfactor / 100.0
 
     def get_name(self):
         return self.name
@@ -25,6 +26,9 @@ class Residue:
 
     def get_bfactor(self):
         return self.bfactor
+
+    def get_conf(self):
+        return self.conf
 
     def get_COM(self, exclude_backbone=False):
         if self.name == "GLY":
