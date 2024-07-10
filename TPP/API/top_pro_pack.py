@@ -11,7 +11,7 @@ from TPP.API.verbose import handle_debug
 
 
 def get_config(
-    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf
+    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf,
 ):
     config = {
         "name": name,
@@ -20,7 +20,7 @@ def get_config(
         "distance_cutoff": distance_cutoff,
         "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
         "ignored_paths": [Path(file).__str__() for file in ignored_paths],
-        "tmaf": tmaf
+        "tmaf": tmaf,
     }
     return config
 
@@ -62,16 +62,6 @@ class Project:
             for f in self.list_pdb_files()
         ]
 
-    def _get_function_perf_decorator(func):
-        def inner(self, id, filename):
-            start = perf_counter()
-            out = func(self, id, filename)
-            end = perf_counter()
-            print(end - start)
-            return out
-
-        return inner
-
     def _init_project(self, config_path):
         if not Path(config_path).is_file():
             raise Exception("invalid config path: {}".format(Path(config_path)))
@@ -97,12 +87,13 @@ class Project:
         except:
             raise Exception("{} is invalid/ignored".format(id))
 
-    # @_get_function_perf_decorator # debugging funtion !!!
-    def load_protein(self, id, file_name):
+    def load_protein(self, id, file_name, skip_clique_gen=False, skip_layer_info=True, out_dir=None, skip_bfactor_check=False):
         file_path = self.pdb_path / Path(file_name)
+        out_path = out_dir / Path(f"{id}.out")
         if file_path.is_file():
             if Path(file_path) not in self.ignored_paths:
-                val = self._init_protein(id, file_path)
+                val = self._init_protein(id, file_path, skip_clique_gen=skip_clique_gen,
+                                         skip_layer_info=skip_layer_info, out_path=out_path, skip_bfactor_check=skip_bfactor_check)
                 if isinstance(val, Exception):
                     return val
                 self.proteins[id] = val
@@ -133,12 +124,15 @@ class Project:
         else:
             raise Exception("{} does not exist".format(Path(file_path)))
 
-    def load_all_pdbs(self, ids, pdb_filter=None):
+    def load_all_pdbs(self, ids, skip_clique_gen=False, skip_layer_info=True, out_dir=None, pdb_filter=None, skip_bfactor_check=False):
+        if out_dir is None:
+            skip_layer_info = True
         try:
             for pdb_file, id in zip(self.list_pdb_files(), ids):
                 handle_debug(print, "loading {} as {} ...".format(Path(pdb_file), id))
                 try:
-                    val = self.load_protein(id, Path(pdb_file))
+                    val = self.load_protein(id, Path(pdb_file), skip_clique_gen=skip_clique_gen,
+                                            skip_layer_info=skip_layer_info, out_dir=out_dir, skip_bfactor_check=skip_bfactor_check)
                     if isinstance(val, Exception):
                         handle_debug(print, val)
                     elif isinstance(val, type(None)):
@@ -168,7 +162,61 @@ class Project:
     def list_ignored(self):
         return self.ignored_paths
 
-    def _init_protein(self, id, file_path):
+    def _process_out_file(self, P, out_path, min_hydrophobic_residues=34, residue_baseline=30):
+        def _get_layer_resid(resid, ref):
+            return ref[resid + 1]
+
+        def _get_cen6_resid(resid, ref):
+            return ref[resid + 1]
+
+        def _get_filtered_out_lines(out_file):
+            with open(out_file, "rt") as file:
+                lines = file.readlines()
+                return [
+                    [i for i in line.split(" ") if i != ""]
+                    for line in lines
+                    if line.split(" ")[0].strip(" ") == "2016Menv"
+                ]
+        if out_path.is_file():
+            flags = [
+                P.name,
+                out_path.__str__(),
+            ]
+            handle_debug(print, "out file found for {}".format(P.name))
+            hydrophobic_count = 0
+            layer_ref = {}
+            cen6_ref = {}
+            content = _get_filtered_out_lines(
+                Path(out_path)
+            )
+            for line in content:
+                res = line[2].strip(" ")
+                id = int(line[1].strip(" "))
+                layer = int(line[4].strip(" "))
+                cen6 = float(line[5].strip(" "))
+                layer_ref[id] = layer
+                cen6_ref[id] = cen6
+                if layer == 3 or layer == 4:
+                    hydrophobic_count += 1
+
+            if hydrophobic_count < min_hydrophobic_residues:
+                flags.append("below hydrophobicity baseline")
+            if len(P.residues) < residue_baseline:
+                flags.append("below residue baseline")
+            if len(layer_ref) != len(P.residues):
+                flags.append("out file / pdb residue count mismatch")
+
+            if len(flags) > 2:
+                return Exception(f"{P.name} out file indicates bad structure with flags {', '.join(flags)}")
+            else:
+                for res in P.residues:
+                    P.residues[res].layerinfo = _get_layer_resid(res, layer_ref)
+                    P.residues[res].tmpcen6info = _get_cen6_resid(res, cen6_ref)  # used to validate Eenv calc alg
+            return "SUCCESS"
+        else:
+            return Exception(f"out file for {P.name} does not exist in {Path(out_path).parent}")
+
+    def _init_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_path=None, skip_bfactor_check=False):
         try:
             P = CentroidProtein(
                 id,
@@ -182,7 +230,17 @@ class Project:
             e = sys.exc_info()[0]
             return Exception(e)
         if len(P.residues) > 0:
-            P.generate_centroid_cliques()
+            if not skip_layer_info:
+                res = self._process_out_file(P, out_path)
+                if isinstance(res, Exception):
+                    return res
+            else:
+                handle_debug(print, "{} skipped layer info merging".format(P.name))
+
+            if not skip_clique_gen:
+                P.generate_centroid_cliques(skip_bfactor_check=skip_bfactor_check)
+            else:
+                handle_debug(print, "{} skipped clique gen".format(P.name))
         else:
             return Exception("{} is empty".format(P.name))
         return P

@@ -11,9 +11,17 @@ class Residue:
         self.old_resid = old_resid
         self.bfactor = bfactor
         self.conf = bfactor / 100.0
+        self.layerinfo = None
+        self.tmpcen6info = None
 
     def get_name(self):
         return self.name
+
+    def get_layerinfo(self):
+        return self.layerinfo
+
+    def get_tmpcen6info(self):
+        return self.tmpcen6info
 
     def get_atoms(self):
         return self.atoms
@@ -32,13 +40,14 @@ class Residue:
 
     def get_COM(self, exclude_backbone=False):
         if self.name == "GLY":
+            centroid_tmp = None
             for atm in self.atoms:
                 if atm.get_name() == "CA":
-                    self.centroid = atm.get_coords()
-                    return self.centroid
+                    centroid_tmp = atm.get_coords()
+            self.centroid = centroid_tmp
             if self.centroid is None:
                 print("No CA atom found for GLY molecule at {}".format(self.resid))
-                return None
+            return self.centroid
         COM = [0.0, 0.0, 0.0]
         mass_sum = 0
         for atm in self.atoms:
@@ -58,7 +67,7 @@ class Residue:
         return self.centroid
 
     def get_centroid(self, exclude_backbone=False):
-        if self.centroid == None:
+        if self.centroid is None:
             self.update_COM(exclude_backbone=exclude_backbone)
         return self.centroid
 
@@ -71,5 +80,3 @@ class Residue:
     def get_chain(self):
         return self.chain
 
-    def get_ss(self):
-        return self.ss

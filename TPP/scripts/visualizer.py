@@ -51,6 +51,16 @@ def draw_heatmap(
     plt.savefig(Path(Path(path_to_dir) / Path("{}.png".format(name))))
     plt.clf()
 
+def plot_E_env(name, burial_bins, E_env_data, layers=[], path_to_dir=r""):
+    fig, ax = plt.subplots()
+    ax.plot(burial_bins, E_env_data)
+    ax.set_title(name)
+    ax.set_xlabel("burial count")
+    ax.set_ylabel('E_env')
+    fig.savefig(Path(path_to_dir) / Path(f"{name}.png"))
+    #plt.show()
+    plt.clf()
+
 
 # plt.show()
 
