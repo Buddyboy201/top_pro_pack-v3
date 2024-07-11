@@ -1,5 +1,7 @@
 import numpy as np
 from itertools import permutations, product
+from scipy.spatial import KDTree
+from TPP.API.constants import AA_REF
 
 
 class EnergyND2:
@@ -11,38 +13,18 @@ class EnergyND2:
         self.M = M
         self.L = L
         self.STATIC_EPAIR_TABLE = np.zeros(shape=(20,) * M, dtype="float64")
-        self.ref = {
-            "GLY": 0,
-            "PRO": 1,
-            "ASP": 2,
-            "GLU": 3,
-            "LYS": 4,
-            "ARG": 5,
-            "HIS": 6,
-            "SER": 7,
-            "THR": 8,
-            "ASN": 9,
-            "GLN": 10,
-            "ALA": 11,
-            "MET": 12,
-            "TYR": 13,
-            "TRP": 14,
-            "VAL": 15,
-            "ILE": 16,
-            "LEU": 17,
-            "PHE": 18,
-            "CYS": 19,
-        }
+        self.result = None
+
         if len(cliques[0]) != M:
             raise Exception("Mismatched set clique dim and input clique dim")
         self.total_res = 0
         self.res_hash = {1: {}, 2: {}, 3: {}, 4: {}}
         for clique in cliques:
             self.total_res += len(clique)
-        for res in self.ref.keys():
+        for res in AA_REF.keys():
             self.res_hash[1][res] = 0
         if self.M >= 2:
-            for combo in product(list(self.ref.keys()), list(self.ref.keys())):
+            for combo in product(list(AA_REF.keys()), list(AA_REF.keys())):
                 vals = list(combo)
                 vals.sort()
                 val = ";".join(vals)
@@ -50,7 +32,7 @@ class EnergyND2:
                     self.res_hash[2][val] = 0
         if self.M >= 3:
             for combo in product(
-                list(self.ref.keys()), list(self.ref.keys()), list(self.ref.keys())
+                list(AA_REF.keys()), list(AA_REF.keys()), list(AA_REF.keys())
             ):
                 vals = list(combo)
                 vals.sort()
@@ -59,10 +41,10 @@ class EnergyND2:
                     self.res_hash[3][val] = 0
         if self.M == 4:
             for combo in product(
-                list(self.ref.keys()),
-                list(self.ref.keys()),
-                list(self.ref.keys()),
-                list(self.ref.keys()),
+                list(AA_REF.keys()),
+                list(AA_REF.keys()),
+                list(AA_REF.keys()),
+                list(AA_REF.keys()),
             ):
                 vals = list(combo)
                 vals.sort()
@@ -101,11 +83,10 @@ class EnergyND2:
         return self.res_hash[len(residues)][val]
 
     def _get_res_codes(self, residues):
-        return tuple(map(lambda x: self.ref[x], residues))
+        return tuple(map(lambda x: AA_REF[x], residues))
 
     def update_epair_table(self):
         for combo_str in self.res_hash[self.M]:
-            # print(combo_str)
             combo = combo_str.split(";")
             if len(list(set(combo))) == 1:
                 self.STATIC_EPAIR_TABLE[
@@ -115,6 +96,10 @@ class EnergyND2:
                 e_pair = self._compute_epair(combo)
                 for clique_combo in permutations(combo):
                     self.STATIC_EPAIR_TABLE[self._get_res_codes(clique_combo)] = e_pair
+        self.result = self.STATIC_EPAIR_TABLE
+
+    def get_result(self):
+        return self.result
 
     def _compute_epair_2(self, residues):
         if len(residues) != 2:
@@ -127,7 +112,6 @@ class EnergyND2:
             self.get_counts([B]),
             self.get_counts(residues),
         )
-        # total_counts = self._get_total_group_counts()
         P_A = counts_A / self.total_res
         P_B = counts_B / self.total_res
         P_AB = counts_AB / self.total_res
@@ -165,7 +149,7 @@ class EnergyND2:
         P_ABCD = counts_ABCD / self.total_res
         P_indv = P_A * P_BCD
         if P_indv == 0 or P_ABCD == 0:
-            return  0
+            return 0
         return -np.log(P_ABCD / P_indv)
 
     def _compute_epair(self, residues):
@@ -175,3 +159,177 @@ class EnergyND2:
             return self._compute_epair_3(residues)
         elif self.M == 4:
             return self._compute_epair_4(residues)
+
+
+def get_new_cen6(cen6):
+    new_cen6 = None
+    if cen6 <= 1:
+        new_cen6 = 1
+    elif cen6 <= 2:
+        new_cen6 = 2
+    elif cen6 <= 3:
+        new_cen6 = 3
+    elif cen6 <= 4:
+        new_cen6 = 4
+    elif cen6 <= 5:
+        new_cen6 = 5
+    elif cen6 <= 6:
+        new_cen6 = 6
+    elif cen6 <= 7:
+        new_cen6 = 7
+    elif cen6 <= 8:
+        new_cen6 = 8
+    else:
+        new_cen6 = 9
+    return new_cen6
+
+
+def get_total_count(all_cen6):
+    total_count = sum([len(all_cen6[structure_id]) for structure_id in all_cen6])
+    return total_count
+
+
+def get_counts_res(all_cen6):
+    counts_res = {type_: 0 for type_ in AA_REF}
+    for structure_id in all_cen6:
+        for resid in all_cen6[structure_id]:
+            type_ = all_cen6[structure_id][resid]["type"]
+            counts_res[type_] += 1
+    return counts_res
+
+
+def get_counts_layer_cen6(all_cen6):
+    counts = {layer: {cen6: 0 for cen6 in range(0, 10)} for layer in range(1, 7)}
+    for structure_id in all_cen6:
+        for resid in all_cen6[structure_id]:
+            layer = all_cen6[structure_id][resid]["layer"]
+            cen6 = all_cen6[structure_id][resid]["cen6"]
+            new_cen6 = get_new_cen6(cen6)
+            counts[layer][new_cen6] += 1
+    return counts
+
+
+def get_counts_res_layer_cen6(all_cen6):
+    counts = {type_: {layer: {cen6: 0 for cen6 in range(0, 10)} for layer in range(1, 7)} for type_ in AA_REF}
+    for structure_id in all_cen6:
+        for resid in all_cen6[structure_id]:
+            type_ = all_cen6[structure_id][resid]["type"]
+            layer = all_cen6[structure_id][resid]["layer"]
+            cen6 = all_cen6[structure_id][resid]["cen6"]
+            new_cen6 = get_new_cen6(cen6)
+            counts[type_][layer][new_cen6] += 1
+    return counts
+
+
+def P_aa(aa_i, total_count, counts_res):
+    # print(f"P({aa_i}) = {counts_res[aa_i]} / {total_count}")
+    return counts_res[aa_i] / total_count
+
+
+def P_aa_L_B(aa_i, L, B, counts_layer_cen6, counts_res_layer_cen6):
+    # print(f"P({aa_i} | {L}, {B}) = {counts_res_layer_cen6[aa_i][L][B]} / {counts_layer_cen6[L][B]}")
+    return counts_res_layer_cen6[aa_i][L][B] / counts_layer_cen6[L][B]
+
+
+def get_E_env(aa_i, L, B, total_count, counts_res, counts_layer_cen6, counts_res_layer_cen6):
+    if counts_res_layer_cen6[aa_i][L][B] == 0:
+        return 5.0
+    top = P_aa_L_B(aa_i, L, B, counts_layer_cen6, counts_res_layer_cen6)
+    bottom = P_aa(aa_i, total_count, counts_res)
+    print(f"E_env_{aa_i}_{L}_{B} = -log({top} / {bottom}) = -log({top / bottom}) = {-np.log(top / bottom)}")
+    return -np.log(top / bottom)
+
+
+def get_all_E_env(all_cen6):
+    total_count = get_total_count(all_cen6)
+    counts_res = get_counts_res(all_cen6)
+    counts_layer_cen6 = get_counts_layer_cen6(all_cen6)
+    counts_res_layer_cen6 = get_counts_res_layer_cen6(all_cen6)
+    result = {type_: {layer: {new_cen6: 0 for new_cen6 in range(1, 10)} for layer in range(1, 7)} for type_ in AA_REF}
+    for type_ in AA_REF:
+        for layer in range(1, 7):
+            for new_cen6 in range(1, 10):
+                PP_bur = get_E_env(type_, layer, new_cen6, total_count, counts_res, counts_layer_cen6,
+                                   counts_res_layer_cen6)
+                result[type_][layer][new_cen6] = PP_bur
+                print(f"MEM_ENV_CEN6 {type_} {layer} {new_cen6} {PP_bur}")
+    return result
+
+
+class EnergyEnvKDTree:
+    def __init__(self, project):
+        self.project = project
+        self.result = None
+
+    def _find_res_cen6(self, centroid, tree, radius=6):
+        cen6 = tree.query_ball_point(centroid, radius, return_length=True)
+        return max(cen6 - 1, 0)  # subtract out identity point
+
+    def _get_all_cen6(self):
+        structures = dict()
+        for structure_id in self.project.proteins:
+            structures[structure_id] = dict()
+            structure = self.project.proteins[structure_id]
+            centroid_resids = structure.get_centroid_resids_nonetype_check_only()
+            centroids = list(centroid_resids.values())
+            tree = KDTree(centroids)
+            for resid, centroid in centroid_resids.items():
+                structures[structure_id][resid] = {
+                    "resid": resid,
+                    "cen6": self._find_res_cen6(centroid, tree),
+                    "type": structure.residues[resid].name,
+                    "layer": structure.residues[resid].layerinfo
+                }
+        return structures
+
+    def update_all_e_env(self):
+        self.result = get_all_E_env(self._get_all_cen6())
+
+    def get_result(self):
+        return self.result
+
+
+def update_resid_centroid_ref(structure, res_centroid_ref):
+    resid_centroid_cliques = [[r.resid for r in clique] for clique in structure.centroid_cliques]
+    for clique in resid_centroid_cliques:
+        for resid in clique:
+            res_centroid_ref[resid].update(clique)
+    return res_centroid_ref
+
+
+class EnergyEnvClique:
+    def __init__(self, project):
+        self.project = project
+        self.result = None
+
+    def _find_res_cen6(self, res, res_centroid_ref, radius=6):
+        cen6 = len(res_centroid_ref[res.resid])
+        return max(cen6 - 1, 0)
+
+    def _get_all_cen6(self):
+        structures = dict()
+        for structure_id in self.project.proteins:
+            structures[structure_id] = dict()
+            structure = self.project.proteins[structure_id]
+            centroid_resids = structure.get_centroid_resids_nonetype_check_only()
+            resid_centroid_ref = dict()
+            for resid in centroid_resids:
+                resid_centroid_ref[resid] = set()
+            resid_centroid_ref = update_resid_centroid_ref(structure, resid_centroid_ref)
+            # resid_centroid_cliques = [[r.resid for r in clique] for clique in structure.centroid_cliques]
+            for resid in centroid_resids:
+                # for clique in resid_centroid_cliques:
+
+                structures[structure_id][resid] = {
+                    "resid": resid,
+                    "cen6": self._find_res_cen6(structure.residues[resid], resid_centroid_ref),
+                    "type": structure.residues[resid].name,
+                    "layer": structure.residues[resid].layerinfo
+                }
+        return structures
+
+    def update_all_e_env(self):
+        self.result = get_all_E_env(self._get_all_cen6())
+
+    def get_result(self):
+        return self.result

@@ -22,6 +22,6 @@ setuptools.setup(
     ],
     py_modules=[],
     install_requires=["mendeleev", "scipy", "matplotlib", "numpy", "pandas", "networkx", "plotly"],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     license="MIT"
 )

@@ -3,6 +3,7 @@ from TPP.API.verbose import handle_debug
 from TPP.API import verbose
 from pathlib import Path
 from bs4 import BeautifulSoup
+import pickle
 
 
 def _get_filtered_out_lines(out_file):
@@ -167,6 +168,138 @@ def gen_clique_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_b
                 )
                 bad_proteins.append(",".join((pdb_id_clean, "", "missing out file")) + "\n")
 
+        if verbose.VERBOSE:
+            with open(bad_proteins_file_path, "wt") as bp_file:
+                bp_file.writelines(bad_proteins)
+
+        writer.writerows(buffer)
+
+
+def gen_simple_db_2(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_baseline=30, bad_proteins_file_path="bad_proteins_file_simple.txt"):
+    # idea: json-style format (may need to use pickle file compression to limit file size)
+    # structure_id: { res_id: {id:0, name:"", oldresid:0, layerinfo:0, centroid:(0, 0, 0) } }
+    db_info = dict()
+    row_counter = 0
+    bad_proteins = []
+    for pdb_id_clean in proj.proteins:
+        if Path(out_dir / Path("{}.out".format(pdb_id_clean))).is_file():
+            flags = [
+                pdb_id_clean,
+                Path(out_dir / Path("{}.out".format(pdb_id_clean))).__str__(),
+            ]
+            handle_debug(print, "out file found for {}".format(pdb_id_clean))
+            P = proj.get_protein(pdb_id_clean)
+            hydrophobic_count = 0
+            layer_ref = {}
+            content = _get_filtered_out_lines(
+                Path(out_dir / Path("{}.out".format(pdb_id_clean)))
+            )
+            for line in content:
+                res = line[2].strip(" ")
+                id = int(line[1].strip(" "))
+                layer = int(line[4].strip(" "))
+                layer_ref[id] = layer
+                if layer == 3 or layer == 4:
+                    hydrophobic_count += 1
+
+            if hydrophobic_count < min_hydrophobic_residues:
+                flags.append("below hydrophobicity baseline")
+            if len(P.residues) < residue_baseline:
+                flags.append("below residue baseline")
+            if len(layer_ref) != len(P.residues):
+                flags.append("out file / pdb residue count mismatch")
+
+            if len(flags) > 2:
+                bad_proteins.append(",".join(flags) + "\n")
+            else:
+                db_info[pdb_id_clean] = dict()
+                for res in P.residues.values():
+                    centroid = res.get_centroid()
+                    row = {
+                        "id": row_counter,
+                        "res": res.name,
+                        "oldresid": res.old_resid,
+                        "layerinfo": _get_layer_resid(res.resid, layer_ref),
+                        "centroid": centroid
+                    }
+                    # buffer.append(row)
+                    db_info[pdb_id_clean][res.resid] = row
+                    row_counter += 1
+        else:
+            handle_debug(
+                print,
+                "out file for {} does not exist in {}".format(pdb_id_clean, out_dir),
+            )
+            bad_proteins.append(",".join((pdb_id_clean, "", "missing out file")) + "\n")
+    if verbose.VERBOSE:
+        with open(bad_proteins_file_path, "wt") as bp_file:
+            bp_file.writelines(bad_proteins)
+    with open(db_path, 'wb') as db_file:
+        pickle.dump(db_info, db_file)
+
+
+
+def gen_simple_db(proj, db_path, out_dir, min_hydrophobic_residues=34, residue_baseline=30, bad_proteins_file_path="bad_proteins_file_simple.txt"):
+    with open(db_path, 'wt', newline='') as db_file:
+        headers = ["id", "res", "resid", "oldresid", "layerinfo", "centroidx", "centroidy", "centroidz", "pdbname"]
+        row_counter = 0
+        writer = csv.DictWriter(db_file, fieldnames=headers, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+        bad_proteins = []
+        buffer = []
+        for pdb_id_clean in proj.proteins:
+            # pdb_id_clean = pdb_id[len("Menv_color_memb_cen_nor_"):len("Menv_color_memb_cen_nor_")+4]
+            if Path(out_dir / Path("{}.out".format(pdb_id_clean))).is_file():
+                flags = [
+                    pdb_id_clean,
+                    Path(out_dir / Path("{}.out".format(pdb_id_clean))).__str__(),
+                ]
+                handle_debug(print, "out file found for {}".format(pdb_id_clean))
+                P = proj.get_protein(pdb_id_clean)
+                hydrophobic_count = 0
+                layer_ref = {}
+                content = _get_filtered_out_lines(
+                    Path(out_dir / Path("{}.out".format(pdb_id_clean)))
+                )
+                for line in content:
+                    res = line[2].strip(" ")
+                    id = int(line[1].strip(" "))
+                    layer = int(line[4].strip(" "))
+                    layer_ref[id] = layer
+                    if layer == 3 or layer == 4:
+                        hydrophobic_count += 1
+
+                if hydrophobic_count < min_hydrophobic_residues:
+                    flags.append("below hydrophobicity baseline")
+                if len(P.residues) < residue_baseline:
+                    flags.append("below residue baseline")
+                if len(layer_ref) != len(P.residues):
+                    flags.append("out file / pdb residue count mismatch")
+
+                if len(flags) > 2:
+                    bad_proteins.append(",".join(flags) + "\n")
+                else:
+                    for res in P.residues.values():
+                        centroid = res.get_centroid()
+                        row = {
+                            "id": row_counter,
+                            "res": res.name,
+                            "resid": res.resid,
+                            "oldresid": res.old_resid,
+                            "layerinfo": _get_layer_resid(res.resid, layer_ref),
+                            "centroidx": float(centroid[0]),
+                            "centroidy": float(centroid[1]),
+                            "centroidz": float(centroid[2]),
+                            "pdbname": P.name
+                        }
+                        buffer.append(row)
+                        row_counter += 1
+            else:
+                handle_debug(
+                    print,
+                    "out file for {} does not exist in {}".format(pdb_id_clean, out_dir),
+                )
+                bad_proteins.append(",".join((pdb_id_clean, "", "missing out file")) + "\n")
         if verbose.VERBOSE:
             with open(bad_proteins_file_path, "wt") as bp_file:
                 bp_file.writelines(bad_proteins)

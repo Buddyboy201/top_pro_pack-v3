@@ -1,9 +1,6 @@
 from mendeleev import element
 
-# TODOs:
-# chain handling - handle by seperating out
-
-element_mass = {}
+ELEMENT_MASS = {}
 
 
 class Atom:
@@ -11,7 +8,7 @@ class Atom:
         self.symbol = symbol.capitalize()
         self.name = name
         self.atomid = atomid
-        self.coords = coords  # (), for consistency save everything as np.array()
+        self.coords = coords
         self.mc_sc = False
         if (
             self.name == "CA"
@@ -20,9 +17,9 @@ class Atom:
             or self.name == "O"
         ):
             self.mc_sc = True
-        if element_mass.get(self.symbol) is None:
-            element_mass[self.symbol] = element(self.symbol).atomic_weight
-        self.atomic_mass = element_mass[self.symbol]
+        if ELEMENT_MASS.get(self.symbol) is None:
+            ELEMENT_MASS[self.symbol] = element(self.symbol).atomic_weight
+        self.atomic_mass = ELEMENT_MASS[self.symbol]
 
     def is_mainchain(self):
         return self.mc_sc

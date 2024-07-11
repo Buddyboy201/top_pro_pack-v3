@@ -1,59 +1,10 @@
 import TPP.API.atom as atom
 import TPP.API.residue as residue
-import numpy as np
 import scipy.spatial
 import networkx as nx
 import math
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
-
-# python version=3.7.7+
-
-
-AAs = [
-    "ALA",
-    "ARG",
-    "ASN",
-    "ASP",
-    "CYS",
-    "GLN",
-    "GLU",
-    "GLY",
-    "HIS",
-    "ILE",
-    "LEU",
-    "LYS",
-    "MET",
-    "PHE",
-    "PRO",
-    "SER",
-    "THR",
-    "TRP",
-    "TYR",
-    "VAL",
-]
-
-ref = {
-    "GLY": 0,
-    "PRO": 1,
-    "ASP": 2,
-    "GLU": 3,
-    "LYS": 4,
-    "ARG": 5,
-    "HIS": 6,
-    "SER": 7,
-    "THR": 8,
-    "ASN": 9,
-    "GLN": 10,
-    "ALA": 11,
-    "MET": 12,
-    "TYR": 13,
-    "TRP": 14,
-    "VAL": 15,
-    "ILE": 16,
-    "LEU": 17,
-    "PHE": 18,
-    "CYS": 19,
-}
+from TPP.API.constants import AAs, AA_REF, L_MAP
 
 
 class CentroidProtein:
@@ -76,12 +27,42 @@ class CentroidProtein:
         self.tmaf = tmaf
         self.file_path = file_path
         self.residues = {}
-        self.centroid_cliques = []
-        self._read_pdb()
+        self.centroid_cliques = None
         self.ss = None
+        # self.centroids = None
+        self._read_pdb()
+        self._update_centroids()
 
     def update_ss(self):
         self.ss = dssp_dict_from_pdb_file(self.file_path, DSSP="mkdssp")
+
+    def _update_centroids(self):
+        for res_id in self.residues:
+            self.residues[res_id].get_centroid(exclude_backbone=self.exclude_backbone)
+
+    def get_centroid_resids(self, enable_nonecheck=True, enable_bfactorcheck=True, enable_layercheck=False, L="ALL"):
+        result = {}
+        for resid in self.residues:
+            if (enable_nonecheck and not self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) is not None) or \
+                    enable_bfactorcheck and not self._check_bfactor_threshold(self.residues[resid], bfactor_baseline=self.filter_bfactor) or \
+                    enable_layercheck and not L_MAP[L][0] <= self.residues[resid].layerinfo <= L_MAP[L][-1] or \
+                    not (enable_nonecheck or enable_bfactorcheck or enable_layercheck):
+                continue
+            else:
+                result[resid] = self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone)
+        return result
+
+    # DEPRECATED?
+    def old_get_centroid_resids(self, L="ALL"):
+        return {resid: self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) for resid in self.residues
+                         if self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) is not None
+                         and self._check_bfactor_threshold(self.residues[resid], bfactor_baseline=self.filter_bfactor)
+                         and L_MAP[L][0] <= self.residues[resid].layerinfo <= L_MAP[L][-1]}
+
+    # DEPRECATED?
+    def get_centroid_resids_nonetype_check_only(self):
+        return {resid: self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) for resid in self.residues
+                         if self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) is not None}
 
     def _read_pdb(self):
         atom_count = 0
@@ -131,7 +112,7 @@ class CentroidProtein:
     def get_residues(self):
         return self.residues
 
-    def generate_centroid_cliques(self):
+    def generate_centroid_cliques(self, skip_bfactor_check=False): # TODO: Need to update with newer centroid compute code
         def _get_dist(coord1, coord2):
             return math.sqrt(
                 (coord1[0] - coord2[0]) ** 2
@@ -139,18 +120,10 @@ class CentroidProtein:
                 + (coord1[2] - coord2[2]) ** 2
             )
 
-        centroids = []
-        centroid_res = {}
-        for res in self.residues:
-            centroid = self.residues[res].get_centroid(
-                exclude_backbone=self.exclude_backbone
-            )
-            if centroid is not None and self._check_bfactor_threshold(
-                self.residues[res], bfactor_baseline=self.filter_bfactor
-            ):
-                centroids.append(centroid)
-                centroid_res[centroid] = self.residues[res]
-        centroids = np.array(centroids)
+        resid_centroids_map = self.get_centroid_resids()
+        centroids = resid_centroids_map.values()
+        centroid_res = {centroid: self.residues[resid] for resid, centroid in resid_centroids_map.items()}
+
         tri = scipy.spatial.qhull.Delaunay(centroids)
         edges = []
         for n in tri.simplices:
@@ -173,13 +146,14 @@ class CentroidProtein:
             if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
                 edges.append((edge[0], edge[1]))
         graph = nx.Graph(edges)
+
         self.centroid_cliques = list(nx.find_cliques(graph))
-        for protein in range(len(self.centroid_cliques)):
-            for res in range(len(self.centroid_cliques[protein])):
-                self.centroid_cliques[protein][res] = centroid_res[
-                    tuple(list(centroids[self.centroid_cliques[protein][res]]))
+        for res in range(len(self.centroid_cliques)):
+            for clique_res in range(len(self.centroid_cliques[res])):
+                self.centroid_cliques[res][clique_res] = centroid_res[
+                    tuple(centroids[self.centroid_cliques[res][clique_res]])
                 ]
-        self.centroid_cliques = np.array(self.centroid_cliques)
+        self.centroid_cliques = self.centroid_cliques
         return self.centroid_cliques
 
 

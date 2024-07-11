@@ -1,5 +1,6 @@
 from pathlib import Path
 import csv
+import pickle
 
 def get_rows(db_path, params, size=2):
     res = list()
@@ -12,6 +13,36 @@ def get_rows(db_path, params, size=2):
                 res.append([row[param] for param in params])
     return res
 
+def get_rows_simple(db_path, params, res=None, layerinfo=None, pdbname=None, unique=False):
+    result = list()
+
+    with open(db_path, "rt", newline='') as db_file:
+        reader = csv.DictReader(db_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        for row in reader:
+            if res is not None and row['res'] not in res:
+                continue
+            if layerinfo is not None and int(row['layerinfo']) not in layerinfo:
+                continue
+            if pdbname is not None and row['pdbname'] not in pdbname:
+                continue
+            entry = tuple([row[param] for param in params])
+            result.append(entry)
+    if unique:
+        return list(set(result))
+    return result
+
+def deserialize_simple_db_2(db_path):
+    with open(db_path, 'rb') as db_file:
+        return pickle.load(db_file)
+
+#  TODO: complete query system for pickle db, and perhaps in the future implement the whole out_file
+#   process within the CentroidProtein objs as well (maybe implement a SimpleCentroidProtein class
+#   with residues containing only centroid information?) and have the CentroidProtein objs automatically
+#   serialize into a db obj
+def query_simple_db_2(db_info, params, res=None, layerinfo=None, pdbname=None, unique=False):
+    result = dict()
+    for pdb_id_clean in db_info:
+        pass
 
 
 
