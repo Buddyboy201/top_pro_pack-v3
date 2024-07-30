@@ -2,8 +2,6 @@ from mendeleev import element
 
 ELEMENT_MASS = {}
 
-# TODO: reformat using formatter
-
 
 class Atom:
     def __init__(self, symbol, name, atomid, coords):
