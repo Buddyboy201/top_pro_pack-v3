@@ -2,7 +2,7 @@ from pathlib import Path
 from subprocess import check_call
 from threading import Thread
 
-
+# DEPRECATED - no longer in use
 def _display_chimera(row, pdb_directory, chimera_path):
     # chimera_path = Path(r"C:\Program Files\Chimera 1.15rc\bin\chimera.exe")
     chimera_path = Path(chimera_path)
@@ -23,6 +23,7 @@ def _display_chimera(row, pdb_directory, chimera_path):
     path_to_cmd.unlink()
 
 
+# DEPRECATED - sql db/row query system no longer in use
 def display_chimera(conn, sql_id, pdb_directory, chimera_path):
     stmt_id = "SELECT pdbname, oldresid FROM cliques WHERE id={}".format(sql_id)
     row = list(conn.execute(stmt_id))[0]
