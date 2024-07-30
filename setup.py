@@ -21,7 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     py_modules=[],
-    install_requires=["mendeleev", "scipy", "matplotlib", "numpy", "pandas", "networkx", "plotly"],
+    install_requires=["mendeleev", "scipy", "matplotlib", "numpy", "pandas", "networkx", "seaborn"],
     python_requires='>=3.7',
     license="MIT"
 )
