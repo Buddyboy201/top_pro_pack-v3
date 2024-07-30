@@ -3,22 +3,18 @@ import TPP.API.residue as residue
 import scipy.spatial
 import networkx as nx
 import math
-from Bio.PDB.DSSP import dssp_dict_from_pdb_file
-from TPP.API.constants import AAs, AA_REF, L_MAP
+from TPP.API.constants import AAs, L_MAP
 
-# TODO: remove filter_bfactor parameter
+# TODO: remove filter_bfactor parameter?
 # TODO: replace self.name with self.structure_id
-# TODO: remove self.ss
-# TODO: remove self.update_ss
 # TODO: remove deprecated functions
-# TODO: remove self._check_bfactor_threshold
+# TODO: remove self._check_bfactor_threshold?
 # TODO: remove unnecessary getters
-# TODO: remove any references to bfactor checks
+# TODO: remove any references to bfactor checks?
 # TODO: make self.generate_centroid_cliques and internal method
 # TODO: add self.generate_centroid_cliques method and add "caching" check for self.centroid_cliques at generation to
 #  avoid recomputing accidentally
 # TODO: rename tmaf parameter to something more intelligible
-# TODO: remove unused imports
 # TODO: reformat using formatter
 
 class CentroidProtein:
@@ -42,14 +38,8 @@ class CentroidProtein:
         self.file_path = file_path
         self.residues = {}
         self.centroid_cliques = None
-        self.ss = None
-        # self.centroids = None
         self._read_pdb()
         self._update_centroids()
-
-    # doesn't work on all platforms - only linux-based. should remove and process externally, then import data as file
-    def update_ss(self):
-        self.ss = dssp_dict_from_pdb_file(self.file_path, DSSP="mkdssp")
 
     def _update_centroids(self):
         for res_id in self.residues:
