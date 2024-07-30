@@ -1,4 +1,27 @@
 
+AA_MINIs = [
+    "G",
+    "P",
+    "D",
+    "E",
+    "K",
+    "R",
+    "H",
+    "S",
+    "T",
+    "N",
+    "Q",
+    "A",
+    "M",
+    "Y",
+    "W",
+    "V",
+    "I",
+    "L",
+    "F",
+    "C",
+]
+
 AAs = [
     "ALA",
     "ARG",
@@ -46,14 +69,15 @@ AA_REF = {
 }
 
 L_MAP = {
-            "ALL": [1, 2, 3, 4, 5, 6],
-            "WATER": [1, 6],
-            "INTERFACE": [2, 5],
-            "HYDROPHOBIC": [3, 4],
-            "W_IN":  [1],
-            "I_IN":  [2],
-            "H_IN":  [3],
-            "H_OUT": [4],
-            "I_OUT": [5],
-            "W_OUT": [6],
+    "ALL": [1, 2, 3, 4, 5, 6],
+    "ALL_TMP": [7],
+    "WATER": [1, 6],
+    "INTERFACE": [2, 5],
+    "HYDROPHOBIC": [3, 4],
+    "W_IN":  [1],
+    "I_IN":  [2],
+    "H_IN":  [3],
+    "H_OUT": [4],
+    "I_OUT": [5],
+    "W_OUT": [6],
 }

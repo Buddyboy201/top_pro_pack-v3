@@ -10,8 +10,14 @@ from TPP.API.verbose import handle_debug
 # filter_bfactor: <default baseline, but can set custom value>
 
 
+# TODO: remove filter_bfactor parameter and all references and checks to it
+# TODO: rename tmaf parameter to something more intelligible
+
+
+
+
 def get_config(
-    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf,
+    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf, filter_pLDDT
 ):
     config = {
         "name": name,
@@ -21,6 +27,7 @@ def get_config(
         "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
         "ignored_paths": [Path(file).__str__() for file in ignored_paths],
         "tmaf": tmaf,
+        "filter_pLDDT": filter_pLDDT
     }
     return config
 
@@ -32,9 +39,10 @@ def create_project(
     pdb_path,
     exclude_backbone=False,
     distance_cutoff=6,
-    filter_bfactor=60,
+    filter_bfactor=60, # TODO: checks should be <=, verify this later.
     tmaf=False,
-    ignored_paths=[],
+    filter_pLDDT=70,
+    ignored_paths=tuple(),
 ):
     config = get_config(
         name=name,
@@ -43,7 +51,8 @@ def create_project(
         distance_cutoff=distance_cutoff,
         filter_bfactor=filter_bfactor,
         ignored_paths=ignored_paths,
-        tmaf=tmaf
+        tmaf=tmaf,
+        filter_pLDDT=filter_pLDDT
     )
 
     with open(config_path, "wt") as file:
@@ -74,6 +83,7 @@ class Project:
             self.pdb_path = Path(config["pdb_path"])
             self.ignored_paths = [Path(file) for file in config["ignored_paths"]]
             self.tmaf = config["tmaf"]
+            self.filter_pLDDT = config["filter_pLDDT"]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
                 self.pdb_path.mkdir(parents=True)
@@ -87,13 +97,17 @@ class Project:
         except:
             raise Exception("{} is invalid/ignored".format(id))
 
-    def load_protein(self, id, file_name, skip_clique_gen=False, skip_layer_info=True, out_dir=None, skip_bfactor_check=False):
-        file_path = self.pdb_path / Path(file_name)
-        out_path = out_dir / Path(f"{id}.out")
+    def load_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_dir=None,
+                     skip_bfactor_check=False, skip_pLDDT_check=False):
+        # file_path = self.pdb_path / Path(file_name)
+        out_path = None
+        if not skip_layer_info:
+            out_path = out_dir / Path(f"{id}.out")
         if file_path.is_file():
             if Path(file_path) not in self.ignored_paths:
                 val = self._init_protein(id, file_path, skip_clique_gen=skip_clique_gen,
-                                         skip_layer_info=skip_layer_info, out_path=out_path, skip_bfactor_check=skip_bfactor_check)
+                                         skip_layer_info=skip_layer_info, out_path=out_path,
+                                         skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
                 if isinstance(val, Exception):
                     return val
                 self.proteins[id] = val
@@ -124,7 +138,8 @@ class Project:
         else:
             raise Exception("{} does not exist".format(Path(file_path)))
 
-    def load_all_pdbs(self, ids, skip_clique_gen=False, skip_layer_info=True, out_dir=None, pdb_filter=None, skip_bfactor_check=False):
+    def load_all_pdbs(self, ids, skip_clique_gen=False, skip_layer_info=True, out_dir=None, pdb_filter=None,
+                      skip_bfactor_check=False, skip_pLDDT_check=False):
         if out_dir is None:
             skip_layer_info = True
         try:
@@ -132,7 +147,8 @@ class Project:
                 handle_debug(print, "loading {} as {} ...".format(Path(pdb_file), id))
                 try:
                     val = self.load_protein(id, Path(pdb_file), skip_clique_gen=skip_clique_gen,
-                                            skip_layer_info=skip_layer_info, out_dir=out_dir, skip_bfactor_check=skip_bfactor_check)
+                                            skip_layer_info=skip_layer_info, out_dir=out_dir,
+                                            skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
                     if isinstance(val, Exception):
                         handle_debug(print, val)
                     elif isinstance(val, type(None)):
@@ -140,6 +156,8 @@ class Project:
                     else:
                         handle_debug(print, "{} loaded as {}".format(pdb_file, id))
                 except:
+                    e = sys.exc_info()
+                    print(e)
                     print("{} could not be loaded".format(pdb_file))
         except:
             raise Exception("All pdbs could not be loaded or handled")
@@ -216,7 +234,8 @@ class Project:
         else:
             return Exception(f"out file for {P.name} does not exist in {Path(out_path).parent}")
 
-    def _init_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_path=None, skip_bfactor_check=False):
+    def _init_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_path=None,
+                      skip_bfactor_check=False, skip_pLDDT_check=False):
         try:
             P = CentroidProtein(
                 id,
@@ -224,7 +243,8 @@ class Project:
                 exclude_backbone=self.exclude_backbone,
                 distance_cutoff=self.distance_cutoff,
                 filter_bfactor=self.filter_bfactor,
-                tmaf=self.tmaf
+                tmaf=self.tmaf,
+                filter_pLDDT=self.filter_pLDDT
             )
         except:
             e = sys.exc_info()[0]
@@ -235,10 +255,12 @@ class Project:
                 if isinstance(res, Exception):
                     return res
             else:
+                for res in P.residues:
+                    P.residues[res].layerinfo = 7
                 handle_debug(print, "{} skipped layer info merging".format(P.name))
 
             if not skip_clique_gen:
-                P.generate_centroid_cliques(skip_bfactor_check=skip_bfactor_check)
+                P.generate_centroid_cliques(skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
             else:
                 handle_debug(print, "{} skipped clique gen".format(P.name))
         else:

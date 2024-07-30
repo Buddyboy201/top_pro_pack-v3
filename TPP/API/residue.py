@@ -1,5 +1,13 @@
 import TPP.API.atom as atom
 
+# TODO: remove self.conf
+# TODO: self.tmpcen6info
+# TODO: change self.get_COM to internal method that returns value w/o updating internal state
+# TODO: remove excessive getters, this is Python which means no private/protected/public variable access
+# TODO: remove unused imports
+# TODO: unify bfactor/pLDDT figures into one interface to avoid storing redundant data
+# TODO: reformat using formatter
+
 
 class Residue:
     def __init__(self, name, resid, atoms, chain, bfactor, old_resid=None):

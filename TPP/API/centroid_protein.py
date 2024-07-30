@@ -6,6 +6,20 @@ import math
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 from TPP.API.constants import AAs, AA_REF, L_MAP
 
+# TODO: remove filter_bfactor parameter
+# TODO: replace self.name with self.structure_id
+# TODO: remove self.ss
+# TODO: remove self.update_ss
+# TODO: remove deprecated functions
+# TODO: remove self._check_bfactor_threshold
+# TODO: remove unnecessary getters
+# TODO: remove any references to bfactor checks
+# TODO: make self.generate_centroid_cliques and internal method
+# TODO: add self.generate_centroid_cliques method and add "caching" check for self.centroid_cliques at generation to
+#  avoid recomputing accidentally
+# TODO: rename tmaf parameter to something more intelligible
+# TODO: remove unused imports
+# TODO: reformat using formatter
 
 class CentroidProtein:
     def __init__(
@@ -15,7 +29,7 @@ class CentroidProtein:
         exclude_backbone=False,
         distance_cutoff=6,
         filter_bfactor=60,
-        filter_tmaf_conf=.75,
+        filter_pLDDT=70, # formerly 75
         tmaf=False
     ):
 
@@ -23,7 +37,7 @@ class CentroidProtein:
         self.exclude_backbone = exclude_backbone
         self.distance_cutoff = distance_cutoff
         self.filter_bfactor = filter_bfactor
-        self.filter_tmaf_conf = filter_tmaf_conf
+        self.filter_pLDDT = filter_pLDDT
         self.tmaf = tmaf
         self.file_path = file_path
         self.residues = {}
@@ -33,6 +47,7 @@ class CentroidProtein:
         self._read_pdb()
         self._update_centroids()
 
+    # doesn't work on all platforms - only linux-based. should remove and process externally, then import data as file
     def update_ss(self):
         self.ss = dssp_dict_from_pdb_file(self.file_path, DSSP="mkdssp")
 
@@ -40,12 +55,14 @@ class CentroidProtein:
         for res_id in self.residues:
             self.residues[res_id].get_centroid(exclude_backbone=self.exclude_backbone)
 
-    def get_centroid_resids(self, enable_nonecheck=True, enable_bfactorcheck=True, enable_layercheck=False, L="ALL"):
+    # TODO: last skip condition is weird - and Nonecheck should always be on s.t. an exception is handled later for unviable centroids
+    def get_centroid_resids(self, enable_nonecheck=True, enable_bfactorcheck=True, enable_layercheck=False, enable_pLDDTcheck=True, L="ALL"):
         result = {}
         for resid in self.residues:
             if (enable_nonecheck and not self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) is not None) or \
-                    enable_bfactorcheck and not self._check_bfactor_threshold(self.residues[resid], bfactor_baseline=self.filter_bfactor) or \
+                    not self.tmaf and enable_bfactorcheck and not self._check_bfactor_threshold(self.residues[resid], bfactor_baseline=self.filter_bfactor) or \
                     enable_layercheck and not L_MAP[L][0] <= self.residues[resid].layerinfo <= L_MAP[L][-1] or \
+                    self.tmaf and enable_pLDDTcheck and not self._check_pLDDT_threshold(self.residues[resid], pLDDT_baseline=self.filter_pLDDT) or \
                     not (enable_nonecheck or enable_bfactorcheck or enable_layercheck):
                 continue
             else:
@@ -103,6 +120,9 @@ class CentroidProtein:
     def _check_bfactor_threshold(self, res, bfactor_baseline):
         return res.get_bfactor() < bfactor_baseline
 
+    def _check_pLDDT_threshold(self, res, pLDDT_baseline):
+        return res.get_bfactor() > pLDDT_baseline
+
     def get_name(self):
         return self.name
 
@@ -112,7 +132,7 @@ class CentroidProtein:
     def get_residues(self):
         return self.residues
 
-    def generate_centroid_cliques(self, skip_bfactor_check=False): # TODO: Need to update with newer centroid compute code
+    def generate_centroid_cliques(self, skip_bfactor_check=False, skip_pLDDT_check=False): # TODO: Need to update with newer centroid compute code
         def _get_dist(coord1, coord2):
             return math.sqrt(
                 (coord1[0] - coord2[0]) ** 2
@@ -120,8 +140,9 @@ class CentroidProtein:
                 + (coord1[2] - coord2[2]) ** 2
             )
 
-        resid_centroids_map = self.get_centroid_resids()
-        centroids = resid_centroids_map.values()
+        resid_centroids_map = self.get_centroid_resids(enable_bfactorcheck=not skip_bfactor_check,
+                                                       enable_pLDDTcheck=not skip_pLDDT_check)
+        centroids = list(resid_centroids_map.values())
         centroid_res = {centroid: self.residues[resid] for resid, centroid in resid_centroids_map.items()}
 
         tri = scipy.spatial.qhull.Delaunay(centroids)

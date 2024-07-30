@@ -1,115 +1,67 @@
-from TPP.scripts.visualizer import draw_heatmap
-from TPP.API.energy import EnergyND2
-from TPP.db.query import get_rows
+import seaborn as sns
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from TPP.API.energy import EnergyMD
 from pandas import DataFrame
 import os
 from pathlib import Path
+from TPP.API.constants import AA_MINIs, AA_REF
 
-def generate_heatmap(name, db_path, M, heatmap_dir, layer="ALL"):
-    HYDROPHOBIC_DIFF = ["1", "2", "5", "6"]
-    INTERFACE_DIFF = ["1", "3", "4", "6"]
-    WATER_DIFF = ["2", "3", "4", "5"]
 
-    res, rows, diff = None, list(), None
-    if layer == "ALL":
-        res = get_rows(db_path, ['clique'], size=M)
-        rows = list(map(lambda x: x[0].split(";"), res))
-    else:
-        if layer == "HYDROPHOBIC":
-            diff = HYDROPHOBIC_DIFF
-        elif layer == "INTERFACE":
-            diff = INTERFACE_DIFF
-        elif layer == "WATER":
-            diff = WATER_DIFF
-        res = get_rows(db_path, ['clique', 'layerinfo'], size=M)
-        for r in res:
-            layers = set(r[1].split(";"))
-            if layers.isdisjoint(diff):
-                rows.append(r[0].split(";"))
+def draw_heatmap(
+    name, heatmap_data, x_labels, y_labels, cmap, path_to_dir=r""
+):
+    plot = sns.heatmap(
+        heatmap_data,
+        xticklabels=x_labels,
+        yticklabels=y_labels,
+        center=0,
+        vmin=-1,
+        vmax=1,
+        robust=True,
+        cmap=cmap,
+    )
+    plt.savefig(Path(Path(path_to_dir) / Path("{}.png".format(name))))
+    plt.clf()
 
-    E_test = EnergyND2(M=M, cliques=rows)
-    E_test.update_epair_table()
 
-    AAs = [
-        "G",
-        "P",
-        "D",
-        "E",
-        "K",
-        "R",
-        "H",
-        "S",
-        "T",
-        "N",
-        "Q",
-        "A",
-        "M",
-        "Y",
-        "W",
-        "V",
-        "I",
-        "L",
-        "F",
-        "C",
-    ]
-
-    ref = {
-        "GLY": 0,
-        "PRO": 1,
-        "ASP": 2,
-        "GLU": 3,
-        "LYS": 4,
-        "ARG": 5,
-        "HIS": 6,
-        "SER": 7,
-        "THR": 8,
-        "ASN": 9,
-        "GLN": 10,
-        "ALA": 11,
-        "MET": 12,
-        "TYR": 13,
-        "TRP": 14,
-        "VAL": 15,
-        "ILE": 16,
-        "LEU": 17,
-        "PHE": 18,
-        "CYS": 19,
-    }
-
+def generate_heatmap(name, project, heatmap_dir, M=2, L="ALL"):
+    E_group = EnergyMD(project, M=M, L=L)
     if M <= 2:
         draw_heatmap(
             name,
-            DataFrame(E_test.STATIC_EPAIR_TABLE),
-            AAs,
-            AAs,
+            DataFrame(E_group.get_result()),
+            AA_MINIs,
+            AA_MINIs,
             "gist_rainbow_r",
             path_to_dir=os.path.abspath(heatmap_dir),
         )
     elif M == 3:
-        for i in ref:
+        for i in AA_REF:
             draw_heatmap(
                 name + "_{}".format(i),
-                DataFrame(E_test.STATIC_EPAIR_TABLE[ref[i]]),
-                AAs,
-                AAs,
+                DataFrame(E_group.get_result()[AA_REF[i]]),
+                AA_MINIs,
+                AA_MINIs,
                 "gist_rainbow_r",
                 path_to_dir=os.path.abspath(heatmap_dir),
             )
     elif M == 4:
-        for i in ref:
-            for j in ref:
+        for i in AA_REF:
+            for j in AA_REF:
                 draw_heatmap(
                     name + "_{}_{}".format(i, j),
-                    DataFrame(E_test.STATIC_EPAIR_TABLE[(ref[i], ref[j])]),
-                    AAs,
-                    AAs,
+                    DataFrame(E_group.get_result()[(AA_REF[i], AA_REF[j])]),
+                    AA_MINIs,
+                    AA_MINIs,
                     "gist_rainbow_r",
                     path_to_dir=os.path.abspath(heatmap_dir)
                 )
     else:
         print("Higher order cliques beyond M=4 not yet supported")
 
-def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created, layers=["ALL", "HYDROPHOBIC", "INTERFACE", "WATER"]):
+
+def generate_all_2d_3d_heatmaps(project, path_to_heatmaps_dir, date_created, layers=("ALL", "HYDROPHOBIC", "INTERFACE", "WATER")):
     if not Path(os.path.abspath(path_to_heatmaps_dir)).is_dir():
         Path(os.path.abspath(path_to_heatmaps_dir)).mkdir(parents=True)
 
@@ -133,13 +85,13 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created, lay
             all_layers_4d_path.mkdir(parents=True)
 
         generate_heatmap(
-            f"ALL_LAYERS_E_test_M2_{date_created}", db_path, 2, all_layers_2d_path
+            f"ALL_LAYERS_E_group_M2_{date_created}", project, all_layers_2d_path, M=2, L="ALL"
         )
         generate_heatmap(
-            f"ALL_LAYERS_E_test_M3_{date_created}", db_path, 3, all_layers_3d_path
+            f"ALL_LAYERS_E_group_M3_{date_created}", project, all_layers_3d_path, M=3, L="ALL"
         )
         generate_heatmap(
-            f"ALL_LAYERS_E_test_M4_{date_created}", db_path, 4, all_layers_4d_path
+            f"ALL_LAYERS_E_group_M4_{date_created}", project, all_layers_4d_path, M=4, L="ALL"
         )
 
     ### HYDROPHOBIC_LAYER ###
@@ -162,25 +114,13 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created, lay
             hydrophobic_4d_path.mkdir(parents=True)
 
         generate_heatmap(
-            f"HYDROPHOBIC_E_test_M2_{date_created}",
-            db_path,
-            2,
-            hydrophobic_2d_path,
-            layer="HYDROPHOBIC",
+            f"HYDROPHOBIC_E_group_M2_{date_created}", project, hydrophobic_2d_path, M=2, L="HYDROPHOBIC"
         )
         generate_heatmap(
-            f"HYDROPHOBIC_E_test_M3_{date_created}",
-            db_path,
-            3,
-            hydrophobic_3d_path,
-            layer="HYDROPHOBIC",
+            f"HYDROPHOBIC_E_group_M3_{date_created}", project, hydrophobic_3d_path, M=3, L="HYDROPHOBIC"
         )
         generate_heatmap(
-            f"HYDROPHOBIC_E_test_M4_{date_created}",
-            db_path,
-            4,
-            hydrophobic_4d_path,
-            layer="HYDROPHOBIC",
+            f"HYDROPHOBIC_E_group_M4_{date_created}", project, hydrophobic_4d_path, M=4, L="HYDROPHOBIC"
         )
 
     ### INTERFACE_LAYER ###
@@ -203,25 +143,13 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created, lay
             interface_4d_path.mkdir(parents=True)
 
         generate_heatmap(
-            f"INTERFACE_E_test_M2_{date_created}",
-            db_path,
-            2,
-            interface_2d_path,
-            layer="INTERFACE",
+            f"INTERFACE_E_group_M2_{date_created}", project, interface_2d_path, M=2, L="INTERFACE"
         )
         generate_heatmap(
-            f"INTERFACE_E_test_M3_{date_created}",
-            db_path,
-            3,
-            interface_3d_path,
-            layer="INTERFACE",
+            f"INTERFACE_E_group_M3_{date_created}", project, interface_3d_path, M=3, L="INTERFACE"
         )
         generate_heatmap(
-            f"INTERFACE_E_test_M4_{date_created}",
-            db_path,
-            4,
-            interface_4d_path,
-            layer="INTERFACE",
+            f"INTERFACE_E_group_M4_{date_created}", project, interface_4d_path, M=4, L="INTERFACE"
         )
 
     ### WATER_LAYER ###
@@ -244,14 +172,52 @@ def generate_all_2d_3d_heatmaps(path_to_heatmaps_dir, db_path, date_created, lay
             water_4d_path.mkdir(parents=True)
 
         generate_heatmap(
-            f"WATER_E_test_M2_{date_created}", db_path, 2, water_2d_path, layer="WATER"
+            f"WATER_E_group_M2_{date_created}", project, water_2d_path, M=2, L="WATER"
         )
         generate_heatmap(
-            f"WATER_E_test_M3_{date_created}", db_path, 3, water_3d_path, layer="WATER"
+            f"WATER_E_group_M3_{date_created}", project, water_3d_path, M=3, L="WATER"
         )
         generate_heatmap(
-            f"WATER_E_test_M4_{date_created}", db_path, 4, water_4d_path, layer="WATER"
+            f"WATER_E_group_M4_{date_created}", project, water_4d_path, M=4, L="WATER"
         )
 
 
+def plot_E_env(aa_i, result_res, plots_dir, layers=(1, 2, 3, 4, 5, 6)):
+    mpl.style.use("seaborn")
+    fig, ax = plt.subplots()
+    L_color_map = {
+        "W_OUT": "deepskyblue",
+        "I_OUT": "lightgreen",
+        "H_OUT": "lightsalmon",
+        "H_IN": "red",
+        "I_IN": "green",
+        "W_IN": "blue",
+        "ALL": "purple"
+    }
+    layer_id_L_map = {
+        1: "W_IN",
+        2: "I_IN",
+        3: "H_IN",
+        4: "H_OUT",
+        5: "I_OUT",
+        6: "W_OUT",
+        7: "ALL"
+    }
+    for layer in layers:
+        items = sorted(result_res[layer].items())
+        sorted_keys, sorted_values = zip(*items)
+        ll = layer_id_L_map[layer]
+        ax.scatter(sorted_keys, sorted_values, color=L_color_map[ll])
+        ax.plot(sorted_keys, sorted_values, color=L_color_map[ll], label=ll)
+    ax.set_title(f"{aa_i}_E_env_plot")
+    ax.set_xlabel("burial count")
+    ax.set_ylabel('E_env')
+    ax.set_ylim(-2, 5)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.90, box.height])
+    # Put a legend to the right of the current axis
+    # ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    fig.savefig(Path(plots_dir) / Path(f"{aa_i}_E_env_plot.png"))
+    plt.clf()
 
