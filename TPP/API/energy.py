@@ -203,8 +203,6 @@ def get_counts_layer_cen6(all_cen6):
             layer = all_cen6[structure_id][resid]["layer"]
             cen6 = all_cen6[structure_id][resid]["cen6"]
             new_cen6 = get_new_cen6(cen6)
-            #if layer is None: # due to lack of layerinfo
-            #    layer = 7 # 'ALL' layer default fallback
             counts[layer][new_cen6] += 1
     return counts
 
