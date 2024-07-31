@@ -3,21 +3,17 @@ from pathlib import Path
 from TPP.API.centroid_protein import CentroidProtein
 import json
 from shutil import copyfile
-from time import perf_counter
 from TPP.API.verbose import handle_debug
 
 
 # filter_bfactor: <default baseline, but can set custom value>
 
 
-# TODO: remove filter_bfactor parameter and all references and checks to it
-# TODO: rename tmaf parameter to something more intelligible
-
-
+# TODO: remove filter_bfactor parameter and all references and checks to it?
 
 
 def get_config(
-    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, tmaf, filter_pLDDT
+    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, is_alphafold, filter_pLDDT
 ):
     config = {
         "name": name,
@@ -26,7 +22,7 @@ def get_config(
         "distance_cutoff": distance_cutoff,
         "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
         "ignored_paths": [Path(file).__str__() for file in ignored_paths],
-        "tmaf": tmaf,
+        "is_alphafold": is_alphafold,
         "filter_pLDDT": filter_pLDDT
     }
     return config
@@ -39,8 +35,8 @@ def create_project(
     pdb_path,
     exclude_backbone=False,
     distance_cutoff=6,
-    filter_bfactor=60, # TODO: checks should be <=, verify this later.
-    tmaf=False,
+    filter_bfactor=60,
+    is_alphafold=False,
     filter_pLDDT=70,
     ignored_paths=tuple(),
 ):
@@ -51,7 +47,7 @@ def create_project(
         distance_cutoff=distance_cutoff,
         filter_bfactor=filter_bfactor,
         ignored_paths=ignored_paths,
-        tmaf=tmaf,
+        is_alphafold=is_alphafold,
         filter_pLDDT=filter_pLDDT
     )
 
@@ -82,7 +78,7 @@ class Project:
             self.name = config["name"]
             self.pdb_path = Path(config["pdb_path"])
             self.ignored_paths = [Path(file) for file in config["ignored_paths"]]
-            self.tmaf = config["tmaf"]
+            self.is_alphafold = config["is_alphafold"]
             self.filter_pLDDT = config["filter_pLDDT"]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
@@ -170,7 +166,7 @@ class Project:
             "distance_cutoff": self.distance_cutoff,
             "filter_bfactor": self.filter_bfactor,
             "ignored_paths": self.ignored_paths,
-            "tmaf": self.tmaf
+            "is_alphafold": self.is_alphafold
         }
         return config
 
@@ -197,7 +193,7 @@ class Project:
                 ]
         if out_path.is_file():
             flags = [
-                P.name,
+                P.structure_id,
                 out_path.__str__(),
             ]
             handle_debug(print, "out file found for {}".format(P.name))
@@ -225,14 +221,14 @@ class Project:
                 flags.append("out file / pdb residue count mismatch")
 
             if len(flags) > 2:
-                return Exception(f"{P.name} out file indicates bad structure with flags {', '.join(flags)}")
+                return Exception(f"{P.structure_id} out file indicates bad structure with flags {', '.join(flags)}")
             else:
                 for res in P.residues:
                     P.residues[res].layerinfo = _get_layer_resid(res, layer_ref)
-                    P.residues[res].tmpcen6info = _get_cen6_resid(res, cen6_ref)  # used to validate Eenv calc alg
+                    # P.residues[res].tmpcen6info = _get_cen6_resid(res, cen6_ref)  # used to validate Eenv calc alg
             return "SUCCESS"
         else:
-            return Exception(f"out file for {P.name} does not exist in {Path(out_path).parent}")
+            return Exception(f"out file for {P.structure_id} does not exist in {Path(out_path).parent}")
 
     def _init_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_path=None,
                       skip_bfactor_check=False, skip_pLDDT_check=False):
@@ -243,7 +239,7 @@ class Project:
                 exclude_backbone=self.exclude_backbone,
                 distance_cutoff=self.distance_cutoff,
                 filter_bfactor=self.filter_bfactor,
-                tmaf=self.tmaf,
+                is_alphafold=self.is_alphafold,
                 filter_pLDDT=self.filter_pLDDT
             )
         except:
@@ -257,12 +253,12 @@ class Project:
             else:
                 for res in P.residues:
                     P.residues[res].layerinfo = 7
-                handle_debug(print, "{} skipped layer info merging".format(P.name))
+                handle_debug(print, "{} skipped layer info merging".format(P.structure_id))
 
             if not skip_clique_gen:
                 P.generate_centroid_cliques(skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
             else:
-                handle_debug(print, "{} skipped clique gen".format(P.name))
+                handle_debug(print, "{} skipped clique gen".format(P.structure_id))
         else:
-            return Exception("{} is empty".format(P.name))
+            return Exception("{} is empty".format(P.structure_id))
         return P
