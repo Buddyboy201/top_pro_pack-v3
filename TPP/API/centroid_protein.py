@@ -5,13 +5,6 @@ import networkx as nx
 import math
 from TPP.API.constants import AAs, L_MAP
 
-# TODO: remove filter_bfactor parameter?
-# TODO: remove self._check_bfactor_threshold?
-# TODO: remove any references to bfactor checks?
-# TODO: make self.generate_centroid_cliques into self.update_centroid_cliques()
-# TODO: add self.generate_centroid_cliques method and add "caching" check for self.centroid_cliques at generation to
-#  avoid recomputing accidentally
-
 
 class CentroidProtein:
     def __init__(
@@ -20,16 +13,16 @@ class CentroidProtein:
         file_path,
         exclude_backbone=False,
         distance_cutoff=6,
-        filter_bfactor=60,  # TODO: change name to something better
-        filter_pLDDT=70, # formerly 75 # TODO: change name to something better
+        max_bfactor_threshold=60,
+        min_pLDDT_baseline=70, # formerly 75
         is_alphafold=False
     ):
 
         self.structure_id = structure_id
         self.exclude_backbone = exclude_backbone
         self.distance_cutoff = distance_cutoff
-        self.filter_bfactor = filter_bfactor
-        self.filter_pLDDT = filter_pLDDT
+        self.max_bfactor_threshold = max_bfactor_threshold
+        self.min_pLDDT_baseline = min_pLDDT_baseline
         self.is_alphafold = is_alphafold
         self.file_path = file_path
         self.residues = {}
@@ -52,21 +45,6 @@ class CentroidProtein:
                 continue
             else:
                 result[resid] = res.get_centroid(exclude_backbone=self.exclude_backbone)
-        return result
-
-    # DEPRECATED
-    # TODO: last skip condition is weird - and Nonecheck should always be on s.t. an exception is handled later for unviable centroids
-    def get_centroid_resids_old(self, enable_nonecheck=True, enable_bfactorcheck=True, enable_layercheck=False, enable_pLDDTcheck=True, L="ALL"):
-        result = {}
-        for resid in self.residues:
-            if (enable_nonecheck and not self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone) is not None) or \
-                    not self.is_alphafold and enable_bfactorcheck and not self._check_bfactor_threshold(self.residues[resid], bfactor_baseline=self.filter_bfactor) or \
-                    enable_layercheck and not L_MAP[L][0] <= self.residues[resid].layerinfo <= L_MAP[L][-1] or \
-                    self.is_alphafold and enable_pLDDTcheck and not self._check_pLDDT_threshold(self.residues[resid], pLDDT_baseline=self.filter_pLDDT) or \
-                    not (enable_nonecheck or enable_bfactorcheck or enable_layercheck):
-                continue
-            else:
-                result[resid] = self.residues[resid].get_centroid(exclude_backbone=self.exclude_backbone)
         return result
 
     def _read_pdb(self):
@@ -107,18 +85,15 @@ class CentroidProtein:
 
     def _check_threshold(self, res):
         if self.is_alphafold:
-            return res.conf_score > self.filter_pLDDT
-        return res.conf_score < self.filter_bfactor
+            return res.conf_score > self.min_pLDDT_baseline
+        return res.conf_score < self.max_bfactor_threshold
 
-    # DEPRECATED
-    def _check_bfactor_threshold(self, res, bfactor_baseline):
-        return res.get_bfactor() < bfactor_baseline
+    def get_centroid_cliques(self, en_thresholdcheck=True):
+        if self.centroid_cliques is None:
+            self.generate_centroid_cliques(en_thresholdcheck=en_thresholdcheck)
+        return self.centroid_cliques
 
-    # DEPRECATED
-    def _check_pLDDT_threshold(self, res, pLDDT_baseline):
-        return res.get_bfactor() > pLDDT_baseline
-
-    def generate_centroid_cliques(self, skip_bfactor_check=False, skip_pLDDT_check=False): # TODO: Need to update with newer centroid compute code?
+    def generate_centroid_cliques(self, en_thresholdcheck=True): # TODO: Need to update with newer centroid compute code?
         def _get_dist(coord1, coord2):
             return math.sqrt(
                 (coord1[0] - coord2[0]) ** 2
@@ -126,16 +101,15 @@ class CentroidProtein:
                 + (coord1[2] - coord2[2]) ** 2
             )
 
-        resid_centroids_map = self.get_centroid_resids(enable_bfactorcheck=not skip_bfactor_check,
-                                                       enable_pLDDTcheck=not skip_pLDDT_check)
+        resid_centroids_map = self.get_centroid_resids(en_thresholdcheck=en_thresholdcheck)
         centroids = list(resid_centroids_map.values())
         centroid_res = {centroid: self.residues[resid] for resid, centroid in resid_centroids_map.items()}
 
         tri = scipy.spatial.qhull.Delaunay(centroids)
         edges = []
         for n in tri.simplices:
-            edge = sorted([n[0], n[1]])
-            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
+            edge = sorted([n[0], n[1]]) # TODO: use nested for loop instead of hardcoding n-indices
+            if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff: # TODO: optimization opportunity - _get_dist()**2 <= dict_cutoff**2
                 edges.append((edge[0], edge[1]))
             edge = sorted([n[0], n[2]])
             if _get_dist(centroids[edge[0]], centroids[edge[1]]) <= self.distance_cutoff:
@@ -160,7 +134,6 @@ class CentroidProtein:
                 self.centroid_cliques[res][clique_res] = centroid_res[
                     tuple(centroids[self.centroid_cliques[res][clique_res]])
                 ]
-        # self.centroid_cliques = self.centroid_cliques  # what's this line even do?
-        return self.centroid_cliques
+        # return self.centroid_cliques
 
 

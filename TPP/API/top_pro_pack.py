@@ -6,38 +6,31 @@ from shutil import copyfile
 from TPP.API.verbose import handle_debug
 
 
-# filter_bfactor: <default baseline, but can set custom value>
-
-
-# TODO: remove filter_bfactor parameter and all references and checks to it?
-
-
 def get_config(
-    name, pdb_path, exclude_backbone, distance_cutoff, filter_bfactor, ignored_paths, is_alphafold, filter_pLDDT
+    name, pdb_path, exclude_backbone, distance_cutoff, max_bfactor_threshold, ignored_paths, is_alphafold, min_pLDDT_baseline
 ):
     config = {
         "name": name,
         "pdb_path": Path(pdb_path).__str__(),
         "exclude_backbone": exclude_backbone,
         "distance_cutoff": distance_cutoff,
-        "filter_bfactor": filter_bfactor,  # remove res if any atms fail baseline
+        "max_bfactor_threshold": max_bfactor_threshold,  # remove res if any atms fail baseline
         "ignored_paths": [Path(file).__str__() for file in ignored_paths],
         "is_alphafold": is_alphafold,
-        "filter_pLDDT": filter_pLDDT
+        "min_pLDDT_baseline": min_pLDDT_baseline
     }
     return config
 
 
-# filter_bfactor default baseline currently temp, will be changed later to more ideal value
 def create_project(
     config_path,
     name,
     pdb_path,
     exclude_backbone=False,
     distance_cutoff=6,
-    filter_bfactor=60,
+    max_bfactor_threshold=60,
+    min_pLDDT_baseline=70,
     is_alphafold=False,
-    filter_pLDDT=70,
     ignored_paths=tuple(),
 ):
     config = get_config(
@@ -45,10 +38,10 @@ def create_project(
         pdb_path=pdb_path,
         exclude_backbone=exclude_backbone,
         distance_cutoff=distance_cutoff,
-        filter_bfactor=filter_bfactor,
-        ignored_paths=ignored_paths,
+        max_bfactor_threshold=max_bfactor_threshold,
+        min_pLDDT_baseline=min_pLDDT_baseline,
         is_alphafold=is_alphafold,
-        filter_pLDDT=filter_pLDDT
+        ignored_paths=ignored_paths
     )
 
     with open(config_path, "wt") as file:
@@ -74,12 +67,12 @@ class Project:
             config = json.load(config_file)
             self.distance_cutoff = config["distance_cutoff"]
             self.exclude_backbone = config["exclude_backbone"]
-            self.filter_bfactor = config["filter_bfactor"]
+            self.max_bfactor_threshold = config["max_bfactor_threshold"]
             self.name = config["name"]
             self.pdb_path = Path(config["pdb_path"])
             self.ignored_paths = [Path(file) for file in config["ignored_paths"]]
             self.is_alphafold = config["is_alphafold"]
-            self.filter_pLDDT = config["filter_pLDDT"]
+            self.min_pLDDT_baseline = config["min_pLDDT_baseline"]
             self.ignore_links = {}
             if not self.pdb_path.is_dir():
                 self.pdb_path.mkdir(parents=True)
@@ -94,8 +87,7 @@ class Project:
             raise Exception("{} is invalid/ignored".format(id))
 
     def load_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_dir=None,
-                     skip_bfactor_check=False, skip_pLDDT_check=False):
-        # file_path = self.pdb_path / Path(file_name)
+                     en_thresholdcheck=True):
         out_path = None
         if not skip_layer_info:
             out_path = out_dir / Path(f"{id}.out")
@@ -103,7 +95,7 @@ class Project:
             if Path(file_path) not in self.ignored_paths:
                 val = self._init_protein(id, file_path, skip_clique_gen=skip_clique_gen,
                                          skip_layer_info=skip_layer_info, out_path=out_path,
-                                         skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
+                                         en_thresholdcheck=en_thresholdcheck)
                 if isinstance(val, Exception):
                     return val
                 self.proteins[id] = val
@@ -134,8 +126,8 @@ class Project:
         else:
             raise Exception("{} does not exist".format(Path(file_path)))
 
-    def load_all_pdbs(self, ids, skip_clique_gen=False, skip_layer_info=True, out_dir=None, pdb_filter=None,
-                      skip_bfactor_check=False, skip_pLDDT_check=False):
+    def load_all_pdbs(self, ids, skip_clique_gen=False, skip_layer_info=True, out_dir=None,
+                      en_thresholdcheck=True):
         if out_dir is None:
             skip_layer_info = True
         try:
@@ -144,7 +136,7 @@ class Project:
                 try:
                     val = self.load_protein(id, Path(pdb_file), skip_clique_gen=skip_clique_gen,
                                             skip_layer_info=skip_layer_info, out_dir=out_dir,
-                                            skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
+                                            en_thresholdcheck=en_thresholdcheck)
                     if isinstance(val, Exception):
                         handle_debug(print, val)
                     elif isinstance(val, type(None)):
@@ -164,9 +156,10 @@ class Project:
             "pdb_path": Path(self.pdb_path).__str__(),
             "exclude_backbone": self.exclude_backbone,
             "distance_cutoff": self.distance_cutoff,
-            "filter_bfactor": self.filter_bfactor,
+            "max_bfactor_threshold": self.max_bfactor_threshold,
+            "min_pLDDT_baseline": self.min_pLDDT_baseline,
+            "is_alphafold": self.is_alphafold,
             "ignored_paths": self.ignored_paths,
-            "is_alphafold": self.is_alphafold
         }
         return config
 
@@ -180,16 +173,13 @@ class Project:
         def _get_layer_resid(resid, ref):
             return ref[resid + 1]
 
-        def _get_cen6_resid(resid, ref):
-            return ref[resid + 1]
-
         def _get_filtered_out_lines(out_file):
             with open(out_file, "rt") as file:
                 lines = file.readlines()
                 return [
                     [i for i in line.split(" ") if i != ""]
                     for line in lines
-                    if line.split(" ")[0].strip(" ") == "2016Menv"
+                    if line.split(" ")[0].strip(" ") == "2016Menv" # TODO: modify out-file format to be less hardcoded (perhaps csv? would reduce sanitization code)
                 ]
         if out_path.is_file():
             flags = [
@@ -225,22 +215,21 @@ class Project:
             else:
                 for res in P.residues:
                     P.residues[res].layerinfo = _get_layer_resid(res, layer_ref)
-                    # P.residues[res].tmpcen6info = _get_cen6_resid(res, cen6_ref)  # used to validate Eenv calc alg
             return "SUCCESS"
         else:
             return Exception(f"out file for {P.structure_id} does not exist in {Path(out_path).parent}")
 
     def _init_protein(self, id, file_path, skip_clique_gen=False, skip_layer_info=True, out_path=None,
-                      skip_bfactor_check=False, skip_pLDDT_check=False):
+                      en_thresholdcheck=True):
         try:
             P = CentroidProtein(
                 id,
                 file_path,
                 exclude_backbone=self.exclude_backbone,
                 distance_cutoff=self.distance_cutoff,
-                filter_bfactor=self.filter_bfactor,
+                max_bfactor_threshold=self.max_bfactor_threshold,
                 is_alphafold=self.is_alphafold,
-                filter_pLDDT=self.filter_pLDDT
+                min_pLDDT_baseline=self.min_pLDDT_baseline
             )
         except:
             e = sys.exc_info()[0]
@@ -256,7 +245,7 @@ class Project:
                 handle_debug(print, "{} skipped layer info merging".format(P.structure_id))
 
             if not skip_clique_gen:
-                P.generate_centroid_cliques(skip_bfactor_check=skip_bfactor_check, skip_pLDDT_check=skip_pLDDT_check)
+                P.generate_centroid_cliques(en_thresholdcheck=en_thresholdcheck)
             else:
                 handle_debug(print, "{} skipped clique gen".format(P.structure_id))
         else:

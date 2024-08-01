@@ -36,7 +36,6 @@ class Residue:
         COM[0] /= float(mass_sum)
         COM[1] /= float(mass_sum)
         COM[2] /= float(mass_sum)
-        # self.centroid = tuple([round(i, 3) for i in COM])
         return tuple([round(i, 3) for i in COM])
 
     def get_centroid(self, exclude_backbone=False):
